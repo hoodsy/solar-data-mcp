@@ -44,6 +44,26 @@ defaults were injected on its behalf. Nothing is ever silently defaulted.
 Claude calls `compare_orientations` and answers with production figures, units, the NREL
 source, and every assumption the model made (losses, azimuth, weather dataset).
 
+### No Claude? Try it from the terminal
+
+[`examples/example_client.py`](examples/example_client.py) is a ~90-line MCP client that
+launches the server the same way Claude Desktop does, lists its tools, and runs the Mesa
+AZ tilt comparison:
+
+```console
+$ git clone https://github.com/loganbernard/solar-data-mcp && cd solar-data-mcp
+$ uv sync
+$ NREL_API_KEY=DEMO_KEY uv run python examples/example_client.py
+Tools exposed by nrel-solar:
+  estimate_production      Estimate annual and monthly AC production for a PV system...
+  ...
+=== compare_orientations ===
+  best                   {'tilt': 25.0, 'azimuth': 180.0}
+  ...
+```
+
+It's also the smallest starting point for wiring these tools into your own agent.
+
 ### Verify your setup
 
 ```console
