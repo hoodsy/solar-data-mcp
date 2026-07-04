@@ -197,3 +197,45 @@ async def test_4xx_body_redacts_api_key(tmp_path: Path, monkeypatch: pytest.Monk
         await client.get_json("/api/x", {"lat": 40})
     assert "SECRETKEY" not in str(excinfo.value)
     assert "REDACTED" in str(excinfo.value)
+
+
+@pytest.mark.anyio
+async def test_token_header_auth_style(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config = NREL.model_copy(update={"auth_style": "token_header", "api_key_env": "AHJ_TOKEN"})
+    monkeypatch.setenv("AHJ_TOKEN", "SECRETTOKEN")
+    fake = FakeTime()
+    transport = ScriptedTransport([ok({})])
+    client = SolarHttpClient(
+        config,
+        transport=transport,
+        cache=HttpCache(path=tmp_path / "http.db", clock=fake.clock),
+        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
+        sleep=fake.sleep,
+    )
+
+    result = await client.get_json("/api/x", {"lat": 40})
+    sent = transport.requests[0]
+    assert sent.headers["Authorization"] == "Token SECRETTOKEN"
+    assert "SECRETTOKEN" not in str(sent.url)  # never in the query string
+    assert "SECRETTOKEN" not in result.url
+
+
+@pytest.mark.anyio
+async def test_unauthenticated_source_sends_no_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = NREL.model_copy(update={"auth_style": "none", "api_key_env": None})
+    fake = FakeTime()
+    transport = ScriptedTransport([ok({})])
+    client = SolarHttpClient(
+        config,
+        transport=transport,
+        cache=HttpCache(path=tmp_path / "http.db", clock=fake.clock),
+        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
+        sleep=fake.sleep,
+    )
+
+    await client.get_json("/api/x", {"lat": 40})
+    sent = transport.requests[0]
+    assert "api_key" not in str(sent.url)
+    assert "Authorization" not in sent.headers

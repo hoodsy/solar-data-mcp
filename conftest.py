@@ -1,12 +1,13 @@
-"""Root pytest configuration: fixture record/replay for NREL tests.
+"""Root pytest configuration: fixture record/replay for every API source.
 
-Replay (default, CI): every request resolves against fixtures/nrel/*.json via
-an in-process transport — there is no real transport object anywhere, so CI
-structurally cannot make a live call. An unknown request is a hard failure
+Replay (default, CI): every request resolves against fixtures/<source>/*.json
+via an in-process transport — there is no real transport object anywhere, so
+CI structurally cannot make a live call. An unknown request is a hard failure
 that prints the missing key.
 
-Record (local only): `uv run pytest --record` sends real requests (key from
-the environment or .env) and rewrites scrubbed fixtures.
+Record (local only): `uv run pytest --record` sends real requests (keys from
+the environment or .env) and writes scrubbed fixtures into the subdirectory of
+whichever registered source matches the request host.
 """
 
 import hashlib
@@ -19,12 +20,19 @@ from typing import Any
 import httpx
 import pytest
 from solar_mcp_core.cache import HttpCache, canonicalize
-from solar_mcp_core.config import NREL
+from solar_mcp_core.config import NREL, SOURCES, SourceConfig
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_core.ratelimit import TokenBucket
 
 REPO_ROOT = Path(__file__).parent
-FIXTURES_DIR = REPO_ROOT / "fixtures" / "nrel"
+FIXTURES_ROOT = REPO_ROOT / "fixtures"
+
+
+def _source_dir_for_host(host: str | None) -> str:
+    for config in SOURCES.values():
+        if httpx.URL(config.base_url).host == host:
+            return config.name
+    return host or "unknown"
 
 
 class FakeTime:
@@ -95,12 +103,12 @@ def request_key(request: httpx.Request) -> str:
 
 
 class ReplayTransport(httpx.AsyncBaseTransport):
-    """Serves recorded fixtures; unknown requests fail the test loudly."""
+    """Serves recorded fixtures for every source; unknown requests fail loudly."""
 
-    def __init__(self, fixtures_dir: Path) -> None:
+    def __init__(self, fixtures_root: Path) -> None:
         self.index: dict[str, dict[str, Any]] = {}
-        if fixtures_dir.is_dir():
-            for path in sorted(fixtures_dir.glob("*.json")):
+        if fixtures_root.is_dir():
+            for path in sorted(fixtures_root.glob("*/*.json")):
                 recorded = json.loads(path.read_text())
                 self.index[recorded["key"]] = recorded
 
@@ -129,11 +137,11 @@ class RecordingTransport(httpx.AsyncBaseTransport):
     from fixtures/ to force a genuine refresh.
     """
 
-    def __init__(self, fixtures_dir: Path) -> None:
-        self.fixtures_dir = fixtures_dir
+    def __init__(self, fixtures_root: Path) -> None:
+        self.fixtures_root = fixtures_root
         self.inner = httpx.AsyncHTTPTransport()
         self.memo: dict[str, httpx.Response] = {}  # dedupe within one pytest run
-        self.replay = ReplayTransport(fixtures_dir)
+        self.replay = ReplayTransport(fixtures_root)
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         key = request_key(request)
@@ -167,7 +175,8 @@ class RecordingTransport(httpx.AsyncBaseTransport):
             body["inputs"]["api_key"] = "SCRUBBED"
         slug = request.url.path.strip("/").replace("/", "_").replace(".json", "")
         digest = hashlib.sha1(key.encode()).hexdigest()[:8]
-        self.fixtures_dir.mkdir(parents=True, exist_ok=True)
+        fixtures_dir = self.fixtures_root / _source_dir_for_host(request.url.host)
+        fixtures_dir.mkdir(parents=True, exist_ok=True)
         fixture = {
             "key": key,
             "hand_authored": False,
@@ -181,7 +190,7 @@ class RecordingTransport(httpx.AsyncBaseTransport):
                 "json": body,
             },
         }
-        (self.fixtures_dir / f"{slug}_{digest}.json").write_text(
+        (fixtures_dir / f"{slug}_{digest}.json").write_text(
             json.dumps(fixture, indent=2, sort_keys=True) + "\n"
         )
 
@@ -198,28 +207,38 @@ def _load_dotenv(path: Path) -> None:
 
 
 @pytest.fixture
-def nrel_transport(request: pytest.FixtureRequest) -> httpx.AsyncBaseTransport:
+def api_transport(request: pytest.FixtureRequest) -> httpx.AsyncBaseTransport:
+    """One transport for all sources: fixture keys carry the full host."""
     if request.config.getoption("--record"):
         _load_dotenv(REPO_ROOT / ".env")
-        if not os.environ.get("NREL_API_KEY"):
-            pytest.fail("--record needs NREL_API_KEY in the environment or .env")
-        return RecordingTransport(FIXTURES_DIR)
-    return ReplayTransport(FIXTURES_DIR)
+        return RecordingTransport(FIXTURES_ROOT)
+    return ReplayTransport(FIXTURES_ROOT)
 
 
 @pytest.fixture
-def nrel_client(
-    nrel_transport: httpx.AsyncBaseTransport,
+def client_for(
+    api_transport: httpx.AsyncBaseTransport,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
-) -> SolarHttpClient:
+) -> Callable[[SourceConfig], SolarHttpClient]:
     monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))  # hermetic cache per test
     if not request.config.getoption("--record"):
-        monkeypatch.setenv("NREL_API_KEY", "TESTKEY")  # key-presence code paths still run
-    return SolarHttpClient(
-        NREL,
-        transport=nrel_transport,
-        cache=HttpCache(path=tmp_path / "http.db"),
-        bucket=TokenBucket(capacity=100, refill_per_second=10),
-    )
+        for config in SOURCES.values():  # key-presence code paths still run in replay
+            if config.api_key_env is not None:
+                monkeypatch.setenv(config.api_key_env, "TESTKEY")
+
+    def make(config: SourceConfig) -> SolarHttpClient:
+        return SolarHttpClient(
+            config,
+            transport=api_transport,
+            cache=HttpCache(path=tmp_path / f"{config.name}.db"),
+            bucket=TokenBucket(capacity=100, refill_per_second=10),
+        )
+
+    return make
+
+
+@pytest.fixture
+def nrel_client(client_for: Callable[[SourceConfig], SolarHttpClient]) -> SolarHttpClient:
+    return client_for(NREL)

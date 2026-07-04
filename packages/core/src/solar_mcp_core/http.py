@@ -144,15 +144,19 @@ class SolarHttpClient:
         self, path: str, params: dict[str, Any], key: str
     ) -> httpx.Response:
         send_params = dict(params)
+        headers: dict[str, str] = {}
         api_key = api_key_for(self.config)
         if api_key is not None:
-            send_params["api_key"] = api_key
+            if self.config.auth_style == "api_key_param":
+                send_params["api_key"] = api_key
+            elif self.config.auth_style == "token_header":
+                headers["Authorization"] = f"Token {api_key}"
 
         last_detail = "no attempts made"
         for attempt in range(_MAX_ATTEMPTS):
             retry_after: float | None = None
             try:
-                response = await self._client.get(path, params=send_params)
+                response = await self._client.get(path, params=send_params, headers=headers)
             except httpx.TransportError as exc:
                 last_detail = f"{type(exc).__name__}: {exc}"
                 logger.debug("attempt %d transport error: %s", attempt + 1, last_detail)
@@ -218,11 +222,9 @@ def _retry_after(response: httpx.Response) -> float | None:
 
 
 def _client_error_detail(response: httpx.Response, config: SourceConfig) -> str:
-    if response.status_code == 403:
-        return (
-            f"HTTP 403 — API key rejected; check {config.api_key_env} "
-            f"(get a free key: {config.signup_url})"
-        )
+    if response.status_code == 403 and config.api_key_env is not None:
+        hint = f" (get a free key: {config.signup_url})" if config.signup_url else ""
+        return f"HTTP 403 — API key rejected; check {config.api_key_env}{hint}"
     body = response.text[:200]
     api_key = api_key_for(config)
     if api_key:  # error bodies can echo request inputs, including the key

@@ -11,6 +11,15 @@ from solar_mcp_core.ratelimit import TokenBucket
 from conftest import FakeTime, ScriptedTransport
 
 
+@pytest.fixture(autouse=True)
+def nrel_only_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin doctor to the nrel source; multi-source behavior has its own test."""
+    from solar_mcp_core import cli
+    from solar_mcp_core.config import NREL
+
+    monkeypatch.setattr(cli, "SOURCES", {"nrel": NREL}, raising=True)
+
+
 def factory_for(transport: httpx.AsyncBaseTransport, tmp_path: Path) -> ClientFactory:
     fake = FakeTime()
 
@@ -122,3 +131,31 @@ def test_doctor_pings_live_on_every_run(
     assert doctor(factory) == 0
     assert doctor(factory) == 0
     assert len(transport.requests) == 2, "second doctor run must hit the source again"
+
+
+def test_doctor_skips_unpingable_and_optional_sources(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """No-key bulk sources print 'no key required'; optional sources SKIP, not FAIL."""
+    from solar_mcp_core import cli
+    from solar_mcp_core.config import DSIRE
+
+    optional = DSIRE.model_copy(
+        update={
+            "name": "opt",
+            "api_key_env": "OPT_TOKEN",
+            "auth_style": "token_header",
+            "required": False,
+        }
+    )
+    monkeypatch.setattr(cli, "SOURCES", {"dsire": DSIRE, "opt": optional}, raising=True)
+    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.delenv("OPT_TOKEN", raising=False)
+
+    exit_code = doctor(factory_for(ScriptedTransport([]), tmp_path))
+    out = capsys.readouterr().out
+    assert exit_code == 0
+    assert "[dsire] no key required" in out
+    assert "[opt] SKIP — optional source" in out

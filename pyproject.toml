@@ -8,6 +8,9 @@ dev = [
     "anyio>=4",
     "ruff>=0.8",
     "mypy>=1.13",
+    # core's BulkStore imports duckdb lazily; runtime dep is declared by the
+    # packages that use it, but core's own tests need it present
+    "duckdb>=1.1",
 ]
 
 [tool.ruff]
@@ -35,6 +38,10 @@ files = [
     "examples",
 ]
 explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "duckdb"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["packages/core/tests", "packages/nrel-solar/tests"]

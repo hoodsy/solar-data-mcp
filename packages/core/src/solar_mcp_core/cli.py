@@ -39,11 +39,17 @@ def doctor(client_factory: ClientFactory = _default_client_factory) -> int:
 
 def _check_source(config: SourceConfig, client_factory: ClientFactory) -> bool:
     label = f"[{config.name}]"
-    key = api_key_for(config)
-    if key is None:
-        print(f"{label} FAIL — {config.api_key_env} not set. Get a free key: {config.signup_url}")
+    if config.api_key_env is None:
+        print(f"{label} no key required")
+    elif api_key_for(config) is None:
+        setup = f" Setup: {config.signup_url}" if config.signup_url else ""
+        if not config.required:
+            print(f"{label} SKIP — optional source; set {config.api_key_env} to enable.{setup}")
+            return True
+        print(f"{label} FAIL — {config.api_key_env} not set.{setup}")
         return False
-    print(f"{label} key present ({config.api_key_env})")
+    else:
+        print(f"{label} key present ({config.api_key_env})")
 
     if config.ping_path is None:
         print(f"{label} SKIP — no liveness ping defined for this source")
