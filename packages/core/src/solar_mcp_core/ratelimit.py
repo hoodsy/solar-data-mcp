@@ -13,8 +13,13 @@ class TokenBucket:
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
-        if capacity <= 0 or refill_per_second <= 0:
-            raise ValueError("capacity and refill_per_second must be positive")
+        if capacity < 1:
+            raise ValueError(
+                "capacity must be >= 1 — a bucket that can never hold a "
+                "full token would block acquire() forever"
+            )
+        if refill_per_second <= 0:
+            raise ValueError("refill_per_second must be positive")
         self._capacity = capacity
         self._refill_per_second = refill_per_second
         self._clock = clock
@@ -24,11 +29,17 @@ class TokenBucket:
         self._lock = asyncio.Lock()
 
     @classmethod
-    def per_hour(cls, requests_per_hour: int, **kwargs: object) -> "TokenBucket":
+    def per_hour(
+        cls,
+        requests_per_hour: int,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> "TokenBucket":
         return cls(
             capacity=float(requests_per_hour),
             refill_per_second=requests_per_hour / 3600.0,
-            **kwargs,  # type: ignore[arg-type]
+            clock=clock,
+            sleep=sleep,
         )
 
     def _refill(self) -> None:

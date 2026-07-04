@@ -16,7 +16,7 @@ import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NoReturn
 
 import httpx
 
@@ -29,6 +29,20 @@ _MAX_ATTEMPTS = 3
 _BACKOFF_SECONDS = (1.0, 2.0, 4.0)
 
 logger = logging.getLogger("solar_mcp.http")
+
+
+def configure_debug_logging() -> None:
+    """Install the stderr debug handler when SOLAR_MCP_DEBUG=1.
+
+    Called from process entry points (server main, CLI) rather than library
+    constructors, so importing or instantiating a client has no logging side
+    effects. stderr only — stdout belongs to the stdio MCP transport.
+    """
+    if debug_enabled() and not logger.handlers:
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setFormatter(logging.Formatter("%(name)s %(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
 
 
 def _iso(epoch: float) -> str:
@@ -58,22 +72,18 @@ class SolarHttpClient:
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self.config = config
+        self._owns_cache = cache is None
         self._cache = cache if cache is not None else HttpCache()
         self._bucket = (
             bucket if bucket is not None else TokenBucket.per_hour(config.rate_limit_per_hour)
         )
         self._sleep = sleep
         self._client = httpx.AsyncClient(
-            base_url=config.base_url, transport=transport, timeout=30.0
+            base_url=config.base_url, transport=transport, timeout=30.0, follow_redirects=True
         )
         # httpx's own INFO logging prints full request URLs — including api_key.
         # Our debug logs redact the key; make sure httpx can't leak it either.
         logging.getLogger("httpx").setLevel(logging.WARNING)
-        if debug_enabled() and not logger.handlers:
-            handler = logging.StreamHandler(sys.stderr)  # stdout belongs to stdio MCP transport
-            handler.setFormatter(logging.Formatter("%(name)s %(message)s"))
-            logger.addHandler(handler)
-            logger.setLevel(logging.DEBUG)
 
     async def get_json(self, path: str, params: dict[str, Any]) -> FetchedResponse:
         key = canonicalize(self.config.base_url, path, params)
@@ -105,6 +115,15 @@ class SolarHttpClient:
             )
 
         remaining = _remaining_header(response)
+        try:
+            data = json.loads(response.text)
+        except json.JSONDecodeError as exc:
+            # Never cache an unparseable body — a single proxy hiccup would
+            # otherwise poison this key for the whole TTL.
+            raise SourceUnavailable(
+                self.config.name,
+                f"non-JSON response (HTTP {response.status_code}): {response.text[:120]!r}",
+            ) from exc
         entry = self._cache.put(
             key,
             source=self.config.name,
@@ -113,7 +132,7 @@ class SolarHttpClient:
             ttl_seconds=self.config.cache_ttl_seconds,
         )
         return FetchedResponse(
-            data=json.loads(response.text),
+            data=data,
             url=key,
             retrieved_at=_iso(entry.retrieved_at),
             from_cache=False,
@@ -148,7 +167,9 @@ class SolarHttpClient:
                     self._handle_quota(response, key)
                 if response.status_code < 500:
                     if response.status_code >= 400:
-                        raise SourceUnavailable(self.config.name, _client_error_detail(response))
+                        raise SourceUnavailable(
+                            self.config.name, _client_error_detail(response, self.config)
+                        )
                     return response
                 last_detail = f"HTTP {response.status_code}"
                 retry_after = _retry_after(response)
@@ -158,7 +179,7 @@ class SolarHttpClient:
 
         raise SourceUnavailable(self.config.name, f"{last_detail} after {_MAX_ATTEMPTS} attempts")
 
-    def _handle_quota(self, response: httpx.Response, key: str) -> None:
+    def _handle_quota(self, response: httpx.Response, key: str) -> NoReturn:
         stale = self._cache.get(key, allow_stale=True)
         if stale is not None:
             logger.debug("quota exceeded; serving stale cache for %s", key)
@@ -167,6 +188,8 @@ class SolarHttpClient:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+        if self._owns_cache:
+            self._cache.close()
 
 
 class _StaleAvailable(Exception):
@@ -194,7 +217,14 @@ def _retry_after(response: httpx.Response) -> float | None:
         return None
 
 
-def _client_error_detail(response: httpx.Response) -> str:
+def _client_error_detail(response: httpx.Response, config: SourceConfig) -> str:
     if response.status_code == 403:
-        return "HTTP 403 — API key rejected; check NREL_API_KEY (get one at the source signup URL)"
-    return f"HTTP {response.status_code}: {response.text[:200]}"
+        return (
+            f"HTTP 403 — API key rejected; check {config.api_key_env} "
+            f"(get a free key: {config.signup_url})"
+        )
+    body = response.text[:200]
+    api_key = api_key_for(config)
+    if api_key:  # error bodies can echo request inputs, including the key
+        body = body.replace(api_key, "REDACTED")
+    return f"HTTP {response.status_code}: {body}"

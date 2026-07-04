@@ -12,6 +12,7 @@ the environment or .env) and rewrites scrubbed fixtures.
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,49 @@ from solar_mcp_core.ratelimit import TokenBucket
 
 REPO_ROOT = Path(__file__).parent
 FIXTURES_DIR = REPO_ROOT / "fixtures" / "nrel"
+
+
+class FakeTime:
+    """Clock + sleep pair for tests: sleeping advances the clock, no real waiting."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.slept: list[float] = []
+
+    def clock(self) -> float:
+        return self.now
+
+    async def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.now += seconds
+
+
+class ScriptedTransport(httpx.AsyncBaseTransport):
+    """Returns queued responses in order; records every request it saw."""
+
+    def __init__(self, responses: list[httpx.Response | Exception]) -> None:
+        self.queue = list(responses)
+        self.requests: list[httpx.Request] = []
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        item = self.queue.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+class RoutedTransport(httpx.AsyncBaseTransport):
+    """Routes each request through a handler — for order-independent scripting
+    (e.g. concurrent sweeps where response order is nondeterministic)."""
+
+    def __init__(self, handler: "Callable[[httpx.Request], httpx.Response]") -> None:
+        self.handler = handler
+        self.requests: list[httpx.Request] = []
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        return self.handler(request)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

@@ -12,13 +12,8 @@ from collections.abc import Callable
 from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import SOURCES, SourceConfig, api_key_for, cache_dir
 from solar_mcp_core.errors import QuotaExceeded, SourceUnavailable
-from solar_mcp_core.http import SolarHttpClient
+from solar_mcp_core.http import SolarHttpClient, configure_debug_logging
 from solar_mcp_core.ratelimit import TokenBucket
-
-# Cheapest keyed endpoint per source, used as the liveness ping.
-_PING: dict[str, tuple[str, dict[str, object]]] = {
-    "nrel": ("/api/solar/solar_resource/v1.json", {"lat": 39.74, "lon": -105.18}),
-}
 
 # Test seam: tests swap this factory to inject a MockTransport-backed client.
 ClientFactory = Callable[[SourceConfig], SolarHttpClient]
@@ -27,10 +22,9 @@ ClientFactory = Callable[[SourceConfig], SolarHttpClient]
 def _default_client_factory(config: SourceConfig) -> SolarHttpClient:
     return SolarHttpClient(
         config,
-        # Doctor must observe the live source, not yesterday's cache entry:
-        # a private bucket and throwaway cache keep it honest without
-        # touching the shared cache DB's freshness.
-        cache=HttpCache(path=cache_dir() / "doctor.db"),
+        # Doctor must observe the live source, never a disk cache entry —
+        # an in-memory cache is created fresh and dies with the process.
+        cache=HttpCache(path=":memory:"),
         bucket=TokenBucket(capacity=5, refill_per_second=1),
     )
 
@@ -51,9 +45,13 @@ def _check_source(config: SourceConfig, client_factory: ClientFactory) -> bool:
         return False
     print(f"{label} key present ({config.api_key_env})")
 
-    path, params = _PING[config.name]
+    if config.ping_path is None:
+        print(f"{label} SKIP — no liveness ping defined for this source")
+        return True
     try:
-        result = asyncio.run(_ping(config, client_factory, path, params))
+        result = asyncio.run(
+            _ping(config, client_factory, config.ping_path, dict(config.ping_params))
+        )
     except QuotaExceeded as exc:
         print(f"{label} FAIL — {exc}")
         return False
@@ -92,6 +90,7 @@ def _cache_writable() -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_debug_logging()
     parser = argparse.ArgumentParser(prog="solar-mcp", description="solar-data-mcp utilities")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("doctor", help="check API keys and ping each data source")

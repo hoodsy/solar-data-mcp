@@ -29,7 +29,7 @@ class QuotaExceeded(SolarMCPError):
         super().__init__(
             f"{source} rate limit exceeded ({detail}). The limit is a rolling "
             "hourly window; capacity returns within 60 minutes of earlier requests. "
-            "Cached results are served where available."
+            "No cached result was available for this request."
         )
 
 

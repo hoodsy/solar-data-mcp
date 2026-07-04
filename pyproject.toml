@@ -32,12 +32,15 @@ files = [
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "conftest.py",
+    "examples",
 ]
 explicit_package_bases = true
 
 [tool.pytest.ini_options]
 testpaths = ["packages/core/tests", "packages/nrel-solar/tests"]
-addopts = "--cov=solar_mcp_core --cov=solar_mcp_nrel --cov-report=term-missing --cov-fail-under=85"
 
-[tool.coverage.run]
-omit = ["*/tests/*"]
+# Coverage is a CI gate (`pytest --cov=solar_mcp_core --cov=solar_mcp_nrel`),
+# not welded onto every local run — `pytest -k one_test` stays usable.
+[tool.coverage.report]
+fail_under = 85
+show_missing = true

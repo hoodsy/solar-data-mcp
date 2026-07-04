@@ -1,20 +1,7 @@
 import pytest
 from solar_mcp_core.ratelimit import TokenBucket
 
-
-class FakeTime:
-    """Clock + sleep pair: sleeping advances the clock, no real waiting."""
-
-    def __init__(self) -> None:
-        self.now = 0.0
-        self.slept: list[float] = []
-
-    def clock(self) -> float:
-        return self.now
-
-    async def sleep(self, seconds: float) -> None:
-        self.slept.append(seconds)
-        self.now += seconds
+from conftest import FakeTime
 
 
 @pytest.mark.anyio
@@ -56,5 +43,7 @@ async def test_per_hour_constructor() -> None:
 def test_invalid_construction_rejected() -> None:
     with pytest.raises(ValueError):
         TokenBucket(capacity=0, refill_per_second=1)
+    with pytest.raises(ValueError):
+        TokenBucket(capacity=0.5, refill_per_second=1)  # could never hold a full token
     with pytest.raises(ValueError):
         TokenBucket(capacity=1, refill_per_second=0)

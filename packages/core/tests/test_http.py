@@ -8,7 +8,8 @@ from solar_mcp_core.config import NREL
 from solar_mcp_core.errors import QuotaExceeded, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_core.ratelimit import TokenBucket
-from support import FakeTime, ScriptedTransport
+
+from conftest import FakeTime, ScriptedTransport
 
 
 def make_client(
@@ -163,3 +164,36 @@ async def test_cache_body_round_trips_json(tmp_path: Path, monkeypatch: pytest.M
     await client.get_json("/api/x", {"lat": 40})
     cached = await client.get_json("/api/x", {"lat": 40})
     assert cached.data == payload
+
+
+@pytest.mark.anyio
+async def test_non_json_200_not_cached(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A garbage 200 body (proxy hiccup) must raise cleanly and must NOT poison the cache."""
+    monkeypatch.setenv("NREL_API_KEY", "TESTKEY")
+    fake = FakeTime()
+    transport = ScriptedTransport(
+        [httpx.Response(200, text="<html>captive portal</html>"), ok({"fine": True})]
+    )
+    client = make_client(tmp_path, transport, fake)
+
+    with pytest.raises(SourceUnavailable, match="non-JSON response"):
+        await client.get_json("/api/x", {"lat": 40})
+
+    result = await client.get_json("/api/x", {"lat": 40})  # retry hits network, not cache
+    assert result.data == {"fine": True}
+    assert not result.from_cache
+
+
+@pytest.mark.anyio
+async def test_4xx_body_redacts_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NREL_API_KEY", "SECRETKEY")
+    fake = FakeTime()
+    transport = ScriptedTransport(
+        [httpx.Response(422, text='{"inputs": {"api_key": "SECRETKEY"}, "errors": ["bad"]}')]
+    )
+    client = make_client(tmp_path, transport, fake)
+
+    with pytest.raises(SourceUnavailable) as excinfo:
+        await client.get_json("/api/x", {"lat": 40})
+    assert "SECRETKEY" not in str(excinfo.value)
+    assert "REDACTED" in str(excinfo.value)

@@ -1,11 +1,12 @@
 """SQLite HTTP cache keyed on canonicalized URL+params.
 
-Caching is a correctness feature here, not just a UX one: NREL's rate limit is
-1,000 req/hr shared across all its APIs, and TMY-based results are deterministic
-per location+params, so a 30-day TTL eliminates most repeat traffic. Stale
-entries are kept and can be served explicitly when the quota is exhausted.
+Caching is a correctness feature here, not just a UX one: every source has a
+rate limit, and agents retry a lot. Sources whose responses are deterministic
+per request (e.g. TMY-based modeling) get long TTLs via SourceConfig. Stale
+entries are kept and can be served explicitly when a quota is exhausted.
 """
 
+import math
 import sqlite3
 import time
 from collections.abc import Callable, Mapping
@@ -40,7 +41,7 @@ def canonicalize(base_url: str, path: str, params: Mapping[str, object]) -> str:
 def _normalize(value: object) -> str:
     if isinstance(value, bool):
         return "1" if value else "0"
-    if isinstance(value, float) and value == int(value):
+    if isinstance(value, float) and math.isfinite(value) and value == int(value):
         return str(int(value))
     return str(value)
 
@@ -61,12 +62,15 @@ class CacheEntry:
 class HttpCache:
     def __init__(
         self,
-        path: Path | None = None,
+        path: Path | str | None = None,
         clock: Callable[[], float] = time.time,
     ) -> None:
+        """SQLite-backed cache. Pass ":memory:" for an ephemeral cache
+        (e.g. doctor's liveness ping, which must never be answered from disk)."""
         self._clock = clock
         db_path = path if path is not None else cache_dir() / "http.db"
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(db_path, Path):
+            db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(db_path)
         self._conn.execute(_SCHEMA)
         self._conn.commit()

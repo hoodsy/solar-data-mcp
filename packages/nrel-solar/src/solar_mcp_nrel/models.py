@@ -5,11 +5,32 @@ bad input is rejected here — before any HTTP call — with the field name and
 allowed range in the error.
 """
 
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from solar_mcp_core.errors import BadInput
+
+
+@dataclass(frozen=True)
+class SystemSpec:
+    """Site + system parameters shared by every PVWatts-backed tool.
+
+    None means "not specified by the caller": the documented default is
+    injected at request-build time and recorded in the envelope's
+    assumptions — so assumptions list exactly the values we chose, never
+    values the caller passed explicitly.
+    """
+
+    lat: float
+    lon: float
+    tilt_deg: float | None = None
+    azimuth_deg: float | None = None
+    array_type: str | None = None
+    module_type: str | None = None
+    losses_pct: float | None = None
+    dc_ac_ratio: float | None = None
 
 
 class ArrayType(StrEnum):
@@ -55,7 +76,8 @@ class PVWattsRequest(BaseModel):
     array_type: ArrayType
     module_type: ModuleType
     losses: float = Field(ge=-5, le=99, description="percent system losses")
-    dc_ac_ratio: float = Field(gt=0)
+    # gt alone would admit +inf, which survives to URL building and breaks there
+    dc_ac_ratio: float = Field(gt=0, allow_inf_nan=False)
     bifaciality: float | None = Field(default=None, ge=0, le=1)
     albedo: float | None = Field(default=None, gt=0, lt=1)
 

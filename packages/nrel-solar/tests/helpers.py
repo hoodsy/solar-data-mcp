@@ -3,20 +3,23 @@
 from solar_mcp_core.envelope import ToolResult
 
 
-def assert_envelope(result: ToolResult, *, expect_assumptions: bool = True) -> None:
+def assert_envelope(result: ToolResult) -> None:
     """Assert the envelope contract every tool must honor.
 
     - data is non-empty
-    - every data field has a units entry (containers included — one unit per key)
+    - every data field is covered by units: either an exact entry, or
+      dotted/list-item entries for nested payloads ("best.tilt_deg",
+      "ranked[].ac_annual_kwh")
     - source is fully populated
-    - assumptions are present whenever defaults were injected
+    - assumptions are present (every tool injects at least one default)
     """
     assert result.data, "data must be non-empty"
     for field in result.data:
-        assert field in result.units, f"data field {field!r} has no units entry"
+        prefixes = (f"{field}.", f"{field}[].")
+        covered = field in result.units or any(u.startswith(prefixes) for u in result.units)
+        assert covered, f"data field {field!r} has no units entry"
     assert result.source.name
     assert result.source.url
     assert result.source.retrieved_at
     assert result.source.license
-    if expect_assumptions:
-        assert result.assumptions, "defaults were injected but assumptions is empty"
+    assert result.assumptions, "defaults were injected but assumptions is empty"

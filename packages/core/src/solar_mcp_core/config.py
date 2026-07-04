@@ -9,7 +9,7 @@ source without importing server packages.
 import os
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 CACHE_DIR_ENV = "SOLAR_MCP_CACHE_DIR"
 DEBUG_ENV = "SOLAR_MCP_DEBUG"
@@ -24,6 +24,9 @@ class SourceConfig(BaseModel):
     license_note: str
     docs_url: str
     signup_url: str
+    # Cheapest keyed endpoint, used by `solar-mcp doctor` as the liveness ping.
+    ping_path: str | None = None
+    ping_params: dict[str, float] = Field(default_factory=dict)
 
 
 NREL = SourceConfig(
@@ -35,6 +38,8 @@ NREL = SourceConfig(
     license_note="NREL Developer Network — free API, attribution appreciated",
     docs_url="https://developer.nlr.gov/docs/solar/",
     signup_url="https://developer.nlr.gov/signup/",
+    ping_path="/api/solar/solar_resource/v1.json",
+    ping_params={"lat": 39.74, "lon": -105.18},
 )
 
 SOURCES: dict[str, SourceConfig] = {NREL.name: NREL}

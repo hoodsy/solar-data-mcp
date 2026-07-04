@@ -1,14 +1,15 @@
 """compare_orientations: tilt x azimuth sweep, ranked against the optimum."""
 
 import asyncio
+from dataclasses import replace
 from typing import Any
 
 from solar_mcp_core import units
-from solar_mcp_core.envelope import ToolResult
-from solar_mcp_core.errors import BadInput, SolarMCPError
+from solar_mcp_core.envelope import SourceRef, ToolResult
+from solar_mcp_core.errors import BadInput, QuotaExceeded, SolarMCPError, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
 
-from solar_mcp_nrel.tools._envelope import PVWATTS_CAVEAT
+from solar_mcp_nrel.models import SystemSpec
 from solar_mcp_nrel.tools.estimate_production import estimate_production
 
 MAX_COMBINATIONS = 25  # hard bound on PVWatts calls per sweep
@@ -30,7 +31,7 @@ def rank_grid(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def validate_grid(tilts: list[float], azimuths: list[float]) -> None:
-    """Bound the sweep before any HTTP happens. Pure."""
+    """Bound the sweep and range-check every value before any HTTP happens. Pure."""
     if not tilts or not azimuths:
         raise BadInput(
             field="tilts/azimuths",
@@ -43,20 +44,20 @@ def validate_grid(tilts: list[float], azimuths: list[float]) -> None:
             value=f"{len(tilts)}x{len(azimuths)}={len(tilts) * len(azimuths)}",
             allowed=f"<= {MAX_COMBINATIONS} combinations per sweep",
         )
+    for i, tilt in enumerate(tilts):
+        if not 0 <= tilt <= 90:
+            raise BadInput(field=f"tilts[{i}]", value=tilt, allowed="0 to 90 degrees")
+    for i, azimuth in enumerate(azimuths):
+        if not 0 <= azimuth < 360:
+            raise BadInput(field=f"azimuths[{i}]", value=azimuth, allowed="0 to <360 degrees")
 
 
 async def compare_orientations(
     client: SolarHttpClient,
-    *,
-    lat: float,
-    lon: float,
+    spec: SystemSpec,
     system_capacity_kw: float,
     tilts: list[float] | None = None,
     azimuths: list[float] | None = None,
-    array_type: str = "fixed_roof",
-    module_type: str = "standard",
-    losses_pct: float = 14.0,
-    dc_ac_ratio: float = 1.2,
 ) -> ToolResult:
     assumptions: list[str] = []
     if tilts is None:
@@ -68,64 +69,84 @@ async def compare_orientations(
             f"azimuths not provided; swept default grid {azimuths} (90=E, 180=S, 270=W)"
         )
     validate_grid(tilts, azimuths)
+    total = len(tilts) * len(azimuths)
 
     semaphore = asyncio.Semaphore(_CONCURRENCY)
-    warnings: list[str] = []
-    source = None
+    failures: list[str] = []
+    skipped = 0
+    quota_hit = False
 
     async def run_cell(tilt: float, azimuth: float) -> dict[str, Any] | None:
-        nonlocal source
+        nonlocal skipped, quota_hit
         async with semaphore:
-            try:
-                result = await estimate_production(
-                    client,
-                    lat=lat,
-                    lon=lon,
-                    system_capacity_kw=system_capacity_kw,
-                    tilt_deg=tilt,
-                    azimuth_deg=azimuth,
-                    array_type=array_type,
-                    module_type=module_type,
-                    losses_pct=losses_pct,
-                    dc_ac_ratio=dc_ac_ratio,
-                )
-            except SolarMCPError as exc:
-                warnings.append(f"tilt={tilt}, azimuth={azimuth} failed: {exc}")
+            if quota_hit:
+                skipped += 1  # don't burn an exhausted rolling window further
                 return None
-            source = result.source
+            cell_spec = replace(spec, tilt_deg=tilt, azimuth_deg=azimuth)
+            try:
+                result = await estimate_production(client, cell_spec, system_capacity_kw)
+            except QuotaExceeded as exc:
+                quota_hit = True
+                failures.append(f"tilt_deg={tilt}, azimuth_deg={azimuth}: {exc}")
+                return None
+            except SolarMCPError as exc:
+                failures.append(f"tilt_deg={tilt}, azimuth_deg={azimuth}: {exc}")
+                return None
             return {
-                "tilt": tilt,
-                "azimuth": azimuth,
+                "tilt_deg": tilt,
+                "azimuth_deg": azimuth,
                 "ac_annual_kwh": result.data["ac_annual_kwh"],
+                "source": result.source,
+                "warnings": result.warnings,
+                "assumptions": result.assumptions,
             }
 
-    cells = await asyncio.gather(*(run_cell(t, a) for t in tilts for a in azimuths))
-    completed = [c for c in cells if c is not None]
-    if not completed or source is None:
-        raise SolarMCPError(
-            f"all {len(tilts) * len(azimuths)} orientation combinations failed; "
-            f"first failure: {warnings[0] if warnings else 'unknown'}"
+    cells = [
+        c for c in await asyncio.gather(*(run_cell(t, a) for t in tilts for a in azimuths)) if c
+    ]
+    if not cells:
+        raise SourceUnavailable(
+            client.config.name,
+            f"all {total} orientation combinations failed; first failure: "
+            f"{failures[0] if failures else 'unknown'}",
         )
-    failed = len(cells) - len(completed)
-    if failed:
-        warnings.insert(0, f"partial result: {failed}/{len(cells)} combinations failed")
 
-    ranked = rank_grid(completed)
+    warnings: list[str] = []
+    if failures or skipped:
+        note = f"partial result: {len(failures)} of {total} combinations failed"
+        if skipped:
+            note += f"; {skipped} not attempted after the rate limit was hit"
+        warnings.append(note)
+        warnings.extend(failures)
+    # Per-cell warnings (stale cache, station distance, PVWatts caveat) and the
+    # system defaults injected per cell — identical across cells, so deduped.
+    warnings.extend(dict.fromkeys(w for cell in cells for w in cell["warnings"]))
+    assumptions.extend(dict.fromkeys(a for cell in cells for a in cell["assumptions"]))
+
+    ranked = rank_grid(
+        [{k: cell[k] for k in ("tilt_deg", "azimuth_deg", "ac_annual_kwh")} for cell in cells]
+    )
+    best = ranked[0]
+    best_source: SourceRef = next(
+        cell["source"]
+        for cell in cells
+        if cell["tilt_deg"] == best["tilt_deg"] and cell["azimuth_deg"] == best["azimuth_deg"]
+    )
+
     return ToolResult(
         data={
             "ranked": ranked,
-            "best": {"tilt": ranked[0]["tilt"], "azimuth": ranked[0]["azimuth"]},
+            "best": {"tilt_deg": best["tilt_deg"], "azimuth_deg": best["azimuth_deg"]},
         },
         units={
-            "ranked": f"per cell: tilt {units.DEGREES}, azimuth {units.DEGREES}, "
-            f"ac_annual_kwh {units.KWH_AC_PER_YEAR}, pct_delta_vs_best {units.PERCENT}",
-            "best": units.DEGREES,
+            "ranked[].tilt_deg": units.DEGREES,
+            "ranked[].azimuth_deg": units.DEGREES,
+            "ranked[].ac_annual_kwh": units.KWH_AC_PER_YEAR,
+            "ranked[].pct_delta_vs_best": units.PERCENT,
+            "best.tilt_deg": units.DEGREES,
+            "best.azimuth_deg": units.DEGREES,
         },
-        source=source,
-        assumptions=[
-            *assumptions,
-            f"losses_pct={losses_pct}, array_type={array_type}, "
-            f"module_type={module_type}, dc_ac_ratio={dc_ac_ratio} applied to every cell",
-        ],
-        warnings=[*warnings, PVWATTS_CAVEAT],
+        source=best_source,
+        assumptions=assumptions,
+        warnings=warnings,
     )

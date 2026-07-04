@@ -2,20 +2,11 @@ from pathlib import Path
 
 from solar_mcp_core.cache import HttpCache, canonicalize
 
-
-class FakeClock:
-    def __init__(self, start: float = 1000.0) -> None:
-        self.now = start
-
-    def __call__(self) -> float:
-        return self.now
-
-    def advance(self, seconds: float) -> None:
-        self.now += seconds
+from conftest import FakeTime
 
 
-def make_cache(tmp_path: Path, clock: FakeClock) -> HttpCache:
-    return HttpCache(path=tmp_path / "http.db", clock=clock)
+def make_cache(tmp_path: Path, clock: FakeTime) -> HttpCache:
+    return HttpCache(path=tmp_path / "http.db", clock=clock.clock)
 
 
 class TestCanonicalize:
@@ -48,11 +39,11 @@ class TestCanonicalize:
 
 class TestHttpCache:
     def test_miss_returns_none(self, tmp_path: Path) -> None:
-        cache = make_cache(tmp_path, FakeClock())
+        cache = make_cache(tmp_path, FakeTime())
         assert cache.get("nope") is None
 
     def test_fresh_hit(self, tmp_path: Path) -> None:
-        clock = FakeClock()
+        clock = FakeTime()
         cache = make_cache(tmp_path, clock)
         cache.put("k", "nrel", 200, '{"a": 1}', ttl_seconds=100)
         entry = cache.get("k")
@@ -61,23 +52,23 @@ class TestHttpCache:
         assert entry.status == 200
 
     def test_expired_entry_not_served(self, tmp_path: Path) -> None:
-        clock = FakeClock()
+        clock = FakeTime()
         cache = make_cache(tmp_path, clock)
         cache.put("k", "nrel", 200, "{}", ttl_seconds=100)
-        clock.advance(101)
+        clock.now += 101
         assert cache.get("k") is None
 
     def test_expired_entry_served_when_stale_allowed(self, tmp_path: Path) -> None:
-        clock = FakeClock()
+        clock = FakeTime()
         cache = make_cache(tmp_path, clock)
         cache.put("k", "nrel", 200, "{}", ttl_seconds=100)
-        clock.advance(101)
+        clock.now += 101
         entry = cache.get("k", allow_stale=True)
         assert entry is not None
-        assert not entry.is_fresh(clock())
+        assert not entry.is_fresh(clock.now)
 
     def test_put_replaces_existing(self, tmp_path: Path) -> None:
-        clock = FakeClock()
+        clock = FakeTime()
         cache = make_cache(tmp_path, clock)
         cache.put("k", "nrel", 200, "old", ttl_seconds=100)
         cache.put("k", "nrel", 200, "new", ttl_seconds=100)
@@ -86,9 +77,14 @@ class TestHttpCache:
         assert entry.body == "new"
 
     def test_persists_across_instances(self, tmp_path: Path) -> None:
-        clock = FakeClock()
+        clock = FakeTime()
         first = make_cache(tmp_path, clock)
         first.put("k", "nrel", 200, "{}", ttl_seconds=100)
         first.close()
         second = make_cache(tmp_path, clock)
         assert second.get("k") is not None
+
+    def test_in_memory_cache_round_trips(self) -> None:
+        cache = HttpCache(path=":memory:", clock=FakeTime().clock)
+        cache.put("k", "nrel", 200, "{}", ttl_seconds=100)
+        assert cache.get("k") is not None

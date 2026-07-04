@@ -20,8 +20,9 @@ from typing import Any
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from pydantic import AnyUrl
 
-MESA_AZ = {"lat": 33.42, "lon": -111.83}
+MESA_AZ: dict[str, Any] = {"lat": 33.42, "lon": -111.83}
 
 SERVER = StdioServerParameters(
     command=sys.executable,
@@ -72,7 +73,7 @@ async def main() -> None:
             summary = (tool.description or "").strip().splitlines()[0]
             print(f"  {tool.name:<24} {summary}")
 
-        coverage = await session.read_resource("source://nrel/coverage")
+        coverage = await session.read_resource(AnyUrl("source://nrel/coverage"))
         first_line = coverage.contents[0].text.splitlines()[0]  # type: ignore[union-attr]
         print(f"\nResource source://nrel/coverage: {first_line}")
 

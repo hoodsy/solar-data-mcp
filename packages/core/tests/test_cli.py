@@ -7,7 +7,8 @@ from solar_mcp_core.cli import ClientFactory, doctor, main
 from solar_mcp_core.config import SourceConfig
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_core.ratelimit import TokenBucket
-from support import FakeTime, ScriptedTransport
+
+from conftest import FakeTime, ScriptedTransport
 
 
 def factory_for(transport: httpx.AsyncBaseTransport, tmp_path: Path) -> ClientFactory:
@@ -93,3 +94,31 @@ def test_doctor_reports_quota(
 def test_main_requires_subcommand() -> None:
     with pytest.raises(SystemExit):
         main([])
+
+
+def test_doctor_pings_live_on_every_run(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """Doctor must never answer 'live ping OK' from a cache left by a prior run."""
+    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("NREL_API_KEY", "GOODKEY")
+    transport = ScriptedTransport(
+        [
+            httpx.Response(200, json={"outputs": {}}, headers={"X-RateLimit-Remaining": "997"}),
+            httpx.Response(200, json={"outputs": {}}, headers={"X-RateLimit-Remaining": "996"}),
+        ]
+    )
+
+    def factory(config: SourceConfig) -> SolarHttpClient:
+        return SolarHttpClient(
+            config,
+            transport=transport,
+            cache=HttpCache(path=":memory:"),
+            bucket=TokenBucket(capacity=5, refill_per_second=1),
+        )
+
+    assert doctor(factory) == 0
+    assert doctor(factory) == 0
+    assert len(transport.requests) == 2, "second doctor run must hit the source again"

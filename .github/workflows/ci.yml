@@ -25,7 +25,7 @@ jobs:
           case "${{ matrix.task }}" in
             lint) uv run ruff check . && uv run ruff format --check . ;;
             typecheck) uv run mypy ;;
-            test) uv run pytest ;;
+            test) uv run pytest --cov=solar_mcp_core --cov=solar_mcp_nrel ;;
           esac
 
   build:
