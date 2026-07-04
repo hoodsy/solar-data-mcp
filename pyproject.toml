@@ -23,6 +23,8 @@ plugins = ["pydantic.mypy"]
 mypy_path = [
     "packages/core/src",
     "packages/nrel-solar/src",
+    "packages/core/tests",
+    "packages/nrel-solar/tests",
 ]
 files = [
     "packages/core/src",
