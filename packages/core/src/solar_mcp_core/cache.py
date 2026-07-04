@@ -8,7 +8,7 @@ entries are kept and can be served explicitly when the quota is exhausted.
 
 import sqlite3
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlencode
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS http_cache (
 """
 
 
-def canonicalize(base_url: str, path: str, params: dict[str, object]) -> str:
+def canonicalize(base_url: str, path: str, params: Mapping[str, object]) -> str:
     """Stable cache/fixture key for a request: sorted params, api_key excluded.
 
     The api_key is excluded so cache entries survive key rotation and recorded
