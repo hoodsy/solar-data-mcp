@@ -8,7 +8,7 @@ allowed range in the error.
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from solar_mcp_core.errors import BadInput
 
 
@@ -120,6 +120,13 @@ class SolarResourceOutputs(BaseModel):
     avg_dni: MonthlySeries | None = None
     avg_ghi: MonthlySeries | None = None
     avg_lat_tilt: MonthlySeries | None = None
+
+    @field_validator("avg_dni", "avg_ghi", "avg_lat_tilt", mode="before")
+    @classmethod
+    def no_data_string_is_none(cls, value: object) -> object:
+        # Out-of-coverage responses carry the literal string "no data" (HTTP 200,
+        # empty errors) instead of null — observed live 2026-07-05.
+        return None if isinstance(value, str) else value
 
 
 class SolarResourceResponse(BaseModel):

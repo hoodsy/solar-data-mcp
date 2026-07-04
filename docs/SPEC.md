@@ -127,9 +127,9 @@ class ToolResult(BaseModel):
 Wraps the NREL Developer Network solar APIs behind one free API key.
 
 - **PVWatts v8** — production modeling (bifacial option, albedo, monthly irradiance
-  losses, 2020 TMY NSRDB weather). Docs: https://developer.nrel.gov/docs/solar/pvwatts/v8/
+  losses, 2020 TMY NSRDB weather). Docs: https://developer.nlr.gov/docs/solar/pvwatts/v8/
 - **Solar Resource / NSRDB** — irradiance statistics for a location.
-  Docs: https://developer.nrel.gov/docs/solar/nsrdb/
+  Docs: https://developer.nlr.gov/docs/solar/nsrdb/
 - Rate limit: 1,000 requests/hour — mitigated by 30-day HTTP cache
 
 ## Tools

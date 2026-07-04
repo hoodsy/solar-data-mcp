@@ -1,0 +1,30 @@
+{
+  "hand_authored": false,
+  "key": "https://developer.nlr.gov/api/solar/solar_resource/v1.json?lat=48.85&lon=2.35",
+  "response": {
+    "headers": {
+      "x-ratelimit-limit": "1000",
+      "x-ratelimit-remaining": "990"
+    },
+    "json": {
+      "errors": [],
+      "inputs": {
+        "lat": "48.85",
+        "lon": "2.35"
+      },
+      "metadata": {
+        "sources": [
+          "Perez-SUNY/NREL, 2012"
+        ]
+      },
+      "outputs": {
+        "avg_dni": "no data",
+        "avg_ghi": "no data",
+        "avg_lat_tilt": "no data"
+      },
+      "version": "1.1.0",
+      "warnings": []
+    },
+    "status": 200
+  }
+}

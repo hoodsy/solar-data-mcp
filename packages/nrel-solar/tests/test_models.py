@@ -95,3 +95,21 @@ def test_validate_coords() -> None:
     with pytest.raises(BadInput) as excinfo:
         validate_coords(0.0, -181.0)
     assert excinfo.value.field == "lon"
+
+
+def test_solar_resource_no_data_strings_normalize_to_none() -> None:
+    from solar_mcp_nrel.models import SolarResourceResponse
+
+    # Live out-of-coverage shape observed 2026-07-05: HTTP 200, empty errors,
+    # and the literal string "no data" in place of each series.
+    response = SolarResourceResponse.model_validate(
+        {
+            "version": "1.1.0",
+            "errors": [],
+            "warnings": [],
+            "outputs": {"avg_dni": "no data", "avg_ghi": "no data", "avg_lat_tilt": "no data"},
+        }
+    )
+    assert response.outputs is not None
+    assert response.outputs.avg_ghi is None
+    assert response.outputs.avg_dni is None

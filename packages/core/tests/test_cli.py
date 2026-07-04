@@ -37,7 +37,7 @@ def test_doctor_fails_without_key(
     out = capsys.readouterr().out
     assert exit_code == 1
     assert "NREL_API_KEY not set" in out
-    assert "https://developer.nrel.gov/signup/" in out
+    assert "https://developer.nlr.gov/signup/" in out
 
 
 def test_doctor_passes_with_valid_key(

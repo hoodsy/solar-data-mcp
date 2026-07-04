@@ -19,8 +19,8 @@ defaults were injected on its behalf. Nothing is ever silently defaulted.
 
 ## Quickstart (≈5 minutes)
 
-**1. Get a free NREL API key** (1 minute): <https://developer.nrel.gov/signup/>
-   (or use `DEMO_KEY` to try it out — 30 requests/hour)
+**1. Get a free NREL API key** (1 minute): <https://developer.nlr.gov/signup/>
+   (or use `DEMO_KEY` to try it out — 10 requests/hour)
 
 **2. Add the server to Claude Desktop** — merge this into your
 `claude_desktop_config.json` (full example in [`examples/`](examples/claude_desktop_config.json)):

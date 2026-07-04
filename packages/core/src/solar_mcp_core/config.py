@@ -28,13 +28,13 @@ class SourceConfig(BaseModel):
 
 NREL = SourceConfig(
     name="nrel",
-    base_url="https://developer.nrel.gov",
+    base_url="https://developer.nlr.gov",
     api_key_env="NREL_API_KEY",
     rate_limit_per_hour=1000,
     cache_ttl_seconds=30 * 86400,  # TMY results are deterministic per location+params
     license_note="NREL Developer Network — free API, attribution appreciated",
-    docs_url="https://developer.nrel.gov/docs/solar/",
-    signup_url="https://developer.nrel.gov/signup/",
+    docs_url="https://developer.nlr.gov/docs/solar/",
+    signup_url="https://developer.nlr.gov/signup/",
 )
 
 SOURCES: dict[str, SourceConfig] = {NREL.name: NREL}

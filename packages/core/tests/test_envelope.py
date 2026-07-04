@@ -7,7 +7,7 @@ def make_result() -> ToolResult:
         units={"ac_annual_kwh": "kWh_ac"},
         source=SourceRef(
             name="NREL PVWatts v8",
-            url="https://developer.nrel.gov/api/pvwatts/v8.json?lat=33.4&lon=-111.8",
+            url="https://developer.nlr.gov/api/pvwatts/v8.json?lat=33.4&lon=-111.8",
             retrieved_at="2026-07-05T00:00:00Z",
             license="NREL Developer Network",
         ),

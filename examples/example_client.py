@@ -9,8 +9,8 @@ Run from the repo root:
     uv run python examples/example_client.py
 
 Uses NREL_API_KEY from your environment (or .env via `uv run --env-file .env`);
-falls back to NREL's public DEMO_KEY (30 requests/hour) so it works with zero
-setup. Get a real key at https://developer.nrel.gov/signup/
+falls back to NREL's public DEMO_KEY (10 requests/hour) so it works with zero
+setup. Get a real key at https://developer.nlr.gov/signup/
 """
 
 import asyncio

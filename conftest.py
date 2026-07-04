@@ -78,31 +78,42 @@ class ReplayTransport(httpx.AsyncBaseTransport):
 
 
 class RecordingTransport(httpx.AsyncBaseTransport):
-    """Passes requests through to the live API and writes scrubbed fixtures."""
+    """Fetches and records only requests with no existing fixture.
+
+    Already-recorded keys replay from disk, so a re-run after a quota hit
+    (DEMO_KEY is 10 req/hr) only fetches what is still missing. Delete files
+    from fixtures/ to force a genuine refresh.
+    """
 
     def __init__(self, fixtures_dir: Path) -> None:
         self.fixtures_dir = fixtures_dir
         self.inner = httpx.AsyncHTTPTransport()
         self.memo: dict[str, httpx.Response] = {}  # dedupe within one pytest run
+        self.replay = ReplayTransport(fixtures_dir)
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         key = request_key(request)
+        if key in self.replay.index:
+            return await self.replay.handle_async_request(request)
         if key in self.memo:
             cached = self.memo[key]
             return httpx.Response(
                 status_code=cached.status_code, headers=cached.headers, content=cached.content
             )
         response = await self.inner.handle_async_request(request)
-        content = await response.aread()
-        if response.status_code < 500:  # 4xx bodies (e.g. out-of-coverage) replay too
+        content = await response.aread()  # decoded bytes — drop encoding headers below
+        headers = {
+            k: v
+            for k, v in response.headers.items()
+            if k.lower() not in ("content-encoding", "content-length", "transfer-encoding")
+        }
+        # 4xx bodies (e.g. out-of-coverage) replay too; 429 is transient, never a fixture
+        if response.status_code < 500 and response.status_code != 429:
             self._write_fixture(key, request, response, content)
-        replay = httpx.Response(
-            status_code=response.status_code, headers=response.headers, content=content
+        self.memo[key] = httpx.Response(
+            status_code=response.status_code, headers=headers, content=content
         )
-        self.memo[key] = replay
-        return httpx.Response(
-            status_code=response.status_code, headers=response.headers, content=content
-        )
+        return httpx.Response(status_code=response.status_code, headers=headers, content=content)
 
     def _write_fixture(
         self, key: str, request: httpx.Request, response: httpx.Response, content: bytes

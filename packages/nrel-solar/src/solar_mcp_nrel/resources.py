@@ -5,8 +5,8 @@ from mcp.server.fastmcp import FastMCP
 LICENSE_TEXT = """\
 NREL Developer Network data (PVWatts v8, NSRDB Solar Resource).
 
-- Access: free API key from https://developer.nrel.gov/signup/
-- Terms: https://developer.nrel.gov/docs/terms/
+- Access: free API key from https://developer.nlr.gov/signup/
+- Terms: https://developer.nlr.gov/docs/terms/
 - Data is produced by the U.S. National Renewable Energy Laboratory and is
   generally public information; attribution to NREL is appreciated.
 - Cite: PVWatts v8 (NREL SAM/SSC pvwattsv8); solar resource data from the
@@ -22,7 +22,7 @@ Coverage notes for the nrel-solar server.
   above 32 km.
 - Solar Resource v1: Perez-SUNY/NREL 2012 model, 1998-2009 average, 0.1-degree
   (~10 km) cells, US coverage; international locations return an error.
-- Rate limit: 1,000 requests/hour per key across ALL developer.nrel.gov APIs
+- Rate limit: 1,000 requests/hour per key across ALL developer.nlr.gov APIs
   (rolling window). This server caches responses for 30 days, so repeated
   queries do not consume quota.
 """

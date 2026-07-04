@@ -62,7 +62,7 @@ async def test_resources_exposed(session) -> None:  # type: ignore[no-untyped-de
 
     content = await session.read_resource("source://nrel/license")
     text = content.contents[0]
-    assert "developer.nrel.gov" in text.text
+    assert "developer.nlr.gov" in text.text
 
 
 @pytest.mark.anyio

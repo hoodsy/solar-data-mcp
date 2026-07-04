@@ -1,0 +1,78 @@
+{
+  "hand_authored": false,
+  "key": "https://developer.nlr.gov/api/solar/solar_resource/v1.json?lat=39.74&lon=-105.18",
+  "response": {
+    "headers": {
+      "x-ratelimit-limit": "1000",
+      "x-ratelimit-remaining": "991"
+    },
+    "json": {
+      "errors": [],
+      "inputs": {
+        "lat": "39.74",
+        "lon": "-105.18"
+      },
+      "metadata": {
+        "sources": [
+          "Perez-SUNY/NREL, 2012"
+        ]
+      },
+      "outputs": {
+        "avg_dni": {
+          "annual": 5.59,
+          "monthly": {
+            "apr": 5.76,
+            "aug": 5.27,
+            "dec": 4.84,
+            "feb": 5.54,
+            "jan": 5.03,
+            "jul": 6.08,
+            "jun": 5.99,
+            "mar": 5.55,
+            "may": 5.78,
+            "nov": 5.51,
+            "oct": 5.73,
+            "sep": 5.99
+          }
+        },
+        "avg_ghi": {
+          "annual": 4.47,
+          "monthly": {
+            "apr": 5.4,
+            "aug": 5.44,
+            "dec": 2.19,
+            "feb": 3.39,
+            "jan": 2.45,
+            "jul": 6.3,
+            "jun": 6.48,
+            "mar": 4.46,
+            "may": 6.08,
+            "nov": 2.76,
+            "oct": 3.75,
+            "sep": 4.93
+          }
+        },
+        "avg_lat_tilt": {
+          "annual": 5.43,
+          "monthly": {
+            "apr": 5.75,
+            "aug": 5.5,
+            "dec": 4.5,
+            "feb": 5.37,
+            "jan": 4.69,
+            "jul": 5.74,
+            "jun": 5.73,
+            "mar": 5.7,
+            "may": 5.68,
+            "nov": 5.1,
+            "oct": 5.54,
+            "sep": 5.92
+          }
+        }
+      },
+      "version": "1.1.0",
+      "warnings": []
+    },
+    "status": 200
+  }
+}

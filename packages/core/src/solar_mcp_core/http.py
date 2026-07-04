@@ -66,6 +66,9 @@ class SolarHttpClient:
         self._client = httpx.AsyncClient(
             base_url=config.base_url, transport=transport, timeout=30.0
         )
+        # httpx's own INFO logging prints full request URLs — including api_key.
+        # Our debug logs redact the key; make sure httpx can't leak it either.
+        logging.getLogger("httpx").setLevel(logging.WARNING)
         if debug_enabled() and not logger.handlers:
             handler = logging.StreamHandler(sys.stderr)  # stdout belongs to stdio MCP transport
             handler.setFormatter(logging.Formatter("%(name)s %(message)s"))
