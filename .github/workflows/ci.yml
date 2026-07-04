@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+        task: [lint, typecheck, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --all-packages
+      # Tests are replay-only: fixtures/nrel/ answers every request in-process,
+      # and no NREL_API_KEY secret exists in CI, so live calls are impossible.
+      - run: |
+          case "${{ matrix.task }}" in
+            lint) uv run ruff check . && uv run ruff format --check . ;;
+            typecheck) uv run mypy ;;
+            test) uv run pytest ;;
+          esac
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - run: uv build --all-packages
+      - run: uvx twine check dist/*

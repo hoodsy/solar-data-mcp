@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "nrel-solar": {
+      "command": "uvx",
+      "args": ["--from", "solar-mcp-nrel", "nrel-solar-mcp"],
+      "env": {
+        "NREL_API_KEY": "YOUR_KEY_HERE"
+      }
+    }
+  }
+}
