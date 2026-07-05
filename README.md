@@ -212,7 +212,7 @@ $ uv run pytest          # fixture replay only, no network
 
 Layout: `packages/core` (shared HTTP client, cache, envelope), one package per domain
 server, and `packages/solar-data-mcp` (the umbrella that mounts all four on one stdio
-entry). Full spec: [`docs/SPEC.md`](docs/SPEC.md). Smallest possible client:
+entry). Smallest possible client:
 [`examples/example_client.py`](examples/example_client.py).
 
 ## License

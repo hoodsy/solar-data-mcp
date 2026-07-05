@@ -1,10 +1,10 @@
 # Skill catalog
 
-Status: **shipped**. The eleven skills below live in
-`packages/solar-data-mcp/src/solar_data_mcp/skills/` and are served by the unified
-`solar-data` server as MCP resources — `skill://solar/<name>` per skill, with
-`skill://solar/index` as the routing table. This doc records the catalog's design
-rationale; the skill files themselves are the operational source of truth.
+The eleven skills below ship inside the `solar-data` server and are served as MCP
+resources — `skill://solar/<name>` per skill, with `skill://solar/index` as the
+routing table. The skill files themselves
+(`packages/solar-data-mcp/src/solar_data_mcp/skills/`) are the operational source of
+truth; this doc is the human-readable catalog.
 
 ## Skills vs tools
 
@@ -69,7 +69,7 @@ only tool output, and rendering is always the host's job.
 
 ## Personas
 
-Three distinct users show up in the cookbook prompts, and they want different
+Three distinct users show up in practice, and they want different
 workflows from the same tools:
 
 | Persona | Cares about | Center of gravity |
@@ -107,7 +107,7 @@ snapshot ops).
 
 **Use when:** "Should I go solar?" / "Would a 6 kW system pay off at my house? I pay
 cash, state CO." / "My home uses 9,000 kWh a year — what size covers it, and is it
-worth it?" (cookbook #3, #7, #8, #15).
+worth it?"
 
 **Flow:** resolve location to lat/lon + state → if usage is known only as a dollar
 bill, convert via `get_electricity_prices` state average (state that as an assumption)
@@ -162,7 +162,6 @@ generating fresh ones.
 
 **Use when:** "How much will my 6 kW system in Boulder produce tomorrow?" / "Is today
 an unusually good solar day?" / "My June statement shows 780 kWh — is that normal?"
-(cookbook #13–#14). Absorbs the earlier `solar-forecast-briefing` draft.
 
 **Flow:** for the future, `forecast_generation` (≤48 h horizon); for "is today
 unusual", `compare_forecast_to_model` (≥115% of the TMY baseline reads "unusually
@@ -237,7 +236,7 @@ comparison table with every figure carrying its vintage.
 
 ### 6. `solar-market-brief` — the standardized state brief
 
-**Use when:** "Brief me on the Texas solar market" (cookbook #12). A repeatable
+**Use when:** "Brief me on the Texas solar market." A repeatable
 brief format: adoption, pricing, policy, infrastructure, friction.
 
 **Flow:** `market_snapshot(state)` as the skeleton, then enrich each section:
@@ -253,7 +252,7 @@ degrades gracefully — warnings name what's missing); coverage honesty per skil
 ### 7. `solar-pricing-analysis` — $/W trends and spreads
 
 **Use when:** "What's happened to residential installed prices in CO since 2019?" /
-"Where is pricing softest?" (cookbook #9).
+"Where is pricing softest?"
 
 **Flow:** `query_installed_systems` over successive year windows (`year_start`/
 `year_end`) to build a trend; use the p25–p75 spread as a maturity/competition
@@ -268,9 +267,7 @@ report the count alongside the stats.
 ### 8. `solar-utility-scale-scout` — the big-iron landscape
 
 **Use when:** "Five biggest solar farms in Colorado — do they have batteries?" /
-"What's been built along this corridor?" (cookbook #11). Analysts and developers.
-Promoted from a folded section: the developer/land-use audience is distinct enough
-to deserve its own trigger.
+"What's been built along this corridor?" Analysts and developers.
 
 **Flow:** `find_utility_scale_projects` by `state` or `bbox` (exactly one; limit ≤
 100, largest first); summarize battery colocation share (`has_battery`), tracking
@@ -286,8 +283,8 @@ facts.
 ### 9. `solar-policy-incentive-scan` — the incentive landscape
 
 **Use when:** "Which states have the richest solar incentives right now?" / "What can
-I claim in Arizona this year?" (cookbook #7, for the research rather than purchase
-angle).
+I claim in Arizona this year?" (the research rather than the purchase angle — purchases
+route to `solar-site-assessment`).
 
 **Flow:** `sync_incentives` once (skill 10) → `get_incentives(state, install_year)`
 per state of interest → compare program counts and types; frame the federal timeline
@@ -305,8 +302,7 @@ snapshot vintage.
 ### 10. `solar-data-sync` — snapshot operations
 
 **Use when:** any skill above hits a `SourceUnavailable` naming a missing sync, or
-on a schedule to keep snapshots fresh. Promoted to standalone now that three
-personas depend on synced data (quote-review needs TTS as much as market-brief does).
+on a schedule to keep snapshots fresh.
 
 **Teaches:**
 - The three loaders and what each unlocks: `sync_tracking_the_sun` →
@@ -343,32 +339,5 @@ limiter assumes 1,000 — expect real 429s, and remember the bucket is now share
 across production, ROI, and forecast-vs-model tools on the unified server.
 
 **What not to promise:** TOU simulation, REopt-style optimization, PVDAQ measured
-data, non-US coverage — all deferred or out of scope per the SPEC. Decline gracefully
+data, non-US coverage — all deferred or out of scope for v1. Decline gracefully
 and name the closest tool family.
-
----
-
-## Changes from the first draft
-
-- `solar-forecast-briefing` → absorbed into `solar-performance-check` (the homeowner
-  cares about their system; the forecast is the mechanism).
-- `solar-system-design` → dissolved: sizing lives in `solar-site-assessment`,
-  orientation sweeps in `solar-proposal-builder` (same tools, different persona
-  framing).
-- `solar-market-research` → split into `solar-market-brief`, `solar-pricing-analysis`,
-  and `solar-data-sync` (the analyst persona turned out to be several workflows, and
-  the sync dance serves everyone).
-- `solar-utility-scale-scout` → promoted from a folded section (distinct audience).
-- `solar-permitting-navigator` was considered and folded: AHJ + timeline lookup is a
-  two-call sequence that lives naturally inside `solar-proposal-builder` and
-  `solar-market-brief` rather than as its own trigger.
-
-## Implementation notes
-
-All eleven skills shipped together in
-`packages/solar-data-mcp/src/solar_data_mcp/skills/`, registered by
-`solar_data_mcp/skills/__init__.py` (frontmatter parser, index builder, resource
-registration) and wired into `server.py` alongside the `source://` resources. Tests in
-`packages/solar-data-mcp/tests/test_skills.py` pin the catalog (a deleted skill fails
-CI), verify every tool a skill names exists on the real server and is mentioned in the
-skill body, and assert the index and skill resources are served verbatim.

@@ -1,8 +1,9 @@
 # CLAUDE.md — solar-data-mcp
 
-Open-source monorepo of MCP servers making US open solar data agent-accessible.
-Full spec: docs/SPEC.md. All four phases are built: nrel-solar, solar-economics,
-solar-market, solar-forecast. Work one phase/package at a time; keep every gate green.
+Open-source monorepo of MCP servers making US open solar data agent-accessible: four
+domain servers (nrel-solar, solar-economics, solar-market, solar-forecast) behind the
+`solar-data-mcp` umbrella. Feature-complete for v1; work one package at a time and
+keep every gate green.
 
 ## Commands
 - Install: `uv sync`
@@ -31,11 +32,10 @@ solar-market, solar-forecast. Work one phase/package at a time; keep every gate 
 - MIT license headers not required; keep files small and single-purpose
 
 ## Out of scope (do not build unless asked)
-- PVDAQ, TOU tariff simulation, REopt, any web UI (deferred to v2 by the roadmap)
+- PVDAQ, TOU tariff simulation, REopt, any web UI (v2 candidates)
 - Google Solar adapter (optional package, later; never a core dependency)
 
 ## Definition of done — every change
-- [x] Phase 1–4 tools shipped with fixture tests and envelope completeness asserted
 - Gates for any new work: `uv run pytest` green (replay only), ruff + mypy --strict clean,
   coverage ≥85% (CI), fixtures scrubbed of keys, every injected default in `assumptions`
 - Release: push a `v*` tag → `.github/workflows/release.yml` publishes all six packages to
