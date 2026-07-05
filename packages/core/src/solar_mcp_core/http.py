@@ -22,6 +22,7 @@ import httpx
 
 from solar_mcp_core.cache import HttpCache, canonicalize
 from solar_mcp_core.config import SourceConfig, api_key_for, debug_enabled
+from solar_mcp_core.envelope import SourceRef
 from solar_mcp_core.errors import QuotaExceeded, SourceUnavailable
 from solar_mcp_core.ratelimit import TokenBucket
 
@@ -59,6 +60,22 @@ class FetchedResponse:
     from_cache: bool
     stale: bool
     ratelimit_remaining: int | None
+
+
+def source_ref(name: str, fetched: FetchedResponse, license_note: str) -> SourceRef:
+    """The SourceRef every tool builds from a fetch — one honest recipe."""
+    return SourceRef(
+        name=name, url=fetched.url, retrieved_at=fetched.retrieved_at, license=license_note
+    )
+
+
+def freshness_warnings(fetched: FetchedResponse) -> list[str]:
+    if fetched.stale:
+        return [
+            "Served from an expired cache entry because the source's rate limit is "
+            "exhausted; values may be out of date."
+        ]
+    return []
 
 
 class SolarHttpClient:

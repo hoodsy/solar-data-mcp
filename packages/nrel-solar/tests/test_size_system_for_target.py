@@ -1,7 +1,6 @@
 from collections.abc import Callable
 
 import pytest
-from helpers import assert_envelope
 from solar_mcp_core.errors import BadInput, SolarMCPError
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_nrel.models import SystemSpec
@@ -12,6 +11,8 @@ from solar_mcp_nrel.tools.size_system_for_target import (
     size_system_for_target,
     solve,
 )
+
+from conftest import assert_envelope
 
 BOULDER = SystemSpec(lat=39.74, lon=-105.18)
 

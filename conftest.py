@@ -21,6 +21,7 @@ import httpx
 import pytest
 from solar_mcp_core.cache import HttpCache, canonicalize
 from solar_mcp_core.config import NREL, SOURCES, SourceConfig
+from solar_mcp_core.envelope import ToolResult
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_core.ratelimit import TokenBucket
 
@@ -76,6 +77,30 @@ class RoutedTransport(httpx.AsyncBaseTransport):
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         return self.handler(request)
+
+
+def assert_envelope(result: ToolResult, *, expect_assumptions: bool = True) -> None:
+    """Assert the envelope contract every tool must honor.
+
+    - data is non-empty
+    - every data field is covered by units: either an exact entry, or
+      dotted/list-item entries for nested payloads ("best.tilt_deg",
+      "ranked[].ac_annual_kwh")
+    - source is fully populated
+    - assumptions are present whenever the tool injected defaults (pass
+      expect_assumptions=False only for calls that specify every input)
+    """
+    assert result.data, "data must be non-empty"
+    for field in result.data:
+        prefixes = (f"{field}.", f"{field}[].")
+        covered = field in result.units or any(u.startswith(prefixes) for u in result.units)
+        assert covered, f"data field {field!r} has no units entry"
+    assert result.source.name
+    assert result.source.url
+    assert result.source.retrieved_at
+    assert result.source.license
+    if expect_assumptions:
+        assert result.assumptions, "defaults were injected but assumptions is empty"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -170,9 +195,7 @@ class RecordingTransport(httpx.AsyncBaseTransport):
     def _write_fixture(
         self, key: str, request: httpx.Request, response: httpx.Response, content: bytes
     ) -> None:
-        body = json.loads(content)
-        if isinstance(body.get("inputs"), dict) and "api_key" in body["inputs"]:
-            body["inputs"]["api_key"] = "SCRUBBED"
+        body = _scrub_api_keys(json.loads(content))
         slug = request.url.path.strip("/").replace("/", "_").replace(".json", "")
         digest = hashlib.sha1(key.encode()).hexdigest()[:8]
         fixtures_dir = self.fixtures_root / _source_dir_for_host(request.url.host)
@@ -193,6 +216,19 @@ class RecordingTransport(httpx.AsyncBaseTransport):
         (fixtures_dir / f"{slug}_{digest}.json").write_text(
             json.dumps(fixture, indent=2, sort_keys=True) + "\n"
         )
+
+
+def _scrub_api_keys(value: Any) -> Any:
+    """Recursively blank any api_key field — sources echo it in different places
+    (PVWatts under `inputs`, EIA under `request`)."""
+    if isinstance(value, dict):
+        return {
+            k: ("SCRUBBED" if k.lower() == "api_key" else _scrub_api_keys(v))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_scrub_api_keys(item) for item in value]
+    return value
 
 
 def _load_dotenv(path: Path) -> None:

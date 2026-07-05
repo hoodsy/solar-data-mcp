@@ -4,7 +4,6 @@ from typing import Any
 
 import httpx
 import pytest
-from helpers import assert_envelope
 from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import NREL
 from solar_mcp_core.errors import BadInput, SourceUnavailable
@@ -18,7 +17,7 @@ from solar_mcp_nrel.tools.compare_orientations import (
     validate_grid,
 )
 
-from conftest import FakeTime, RoutedTransport
+from conftest import FakeTime, RoutedTransport, assert_envelope
 
 BOULDER = SystemSpec(lat=39.74, lon=-105.18)
 

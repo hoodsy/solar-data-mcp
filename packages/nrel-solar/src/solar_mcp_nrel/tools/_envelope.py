@@ -1,7 +1,10 @@
-"""Shared envelope plumbing for nrel-solar tools."""
+"""NREL-specific envelope pieces; generic recipes live in core.http."""
 
 from solar_mcp_core.envelope import SourceRef
-from solar_mcp_core.http import FetchedResponse
+from solar_mcp_core.http import FetchedResponse, freshness_warnings
+from solar_mcp_core.http import source_ref as _core_source_ref
+
+__all__ = ["NREL_LICENSE", "PVWATTS_CAVEAT", "freshness_warnings", "source_ref"]
 
 PVWATTS_CAVEAT = (
     "PVWatts models a typical system from TMY weather data; estimates do not "
@@ -13,18 +16,4 @@ NREL_LICENSE = "NREL Developer Network (free, attribution appreciated)"
 
 
 def source_ref(name: str, fetched: FetchedResponse) -> SourceRef:
-    return SourceRef(
-        name=name,
-        url=fetched.url,
-        retrieved_at=fetched.retrieved_at,
-        license=NREL_LICENSE,
-    )
-
-
-def freshness_warnings(fetched: FetchedResponse) -> list[str]:
-    if fetched.stale:
-        return [
-            "Served from an expired cache entry because the NREL rate limit is "
-            "exhausted; values may be out of date."
-        ]
-    return []
+    return _core_source_ref(name, fetched, NREL_LICENSE)

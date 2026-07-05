@@ -1,0 +1,162 @@
+{
+  "hand_authored": false,
+  "key": "https://api.eia.gov/v2/electricity/retail-sales/data/?data%5B0%5D=price&facets%5Bsectorid%5D%5B%5D=RES&facets%5Bstateid%5D%5B%5D=CO&frequency=monthly&length=12&sort%5B0%5D%5Bcolumn%5D=period&sort%5B0%5D%5Bdirection%5D=desc",
+  "response": {
+    "headers": {
+      "x-ratelimit-limit": "10",
+      "x-ratelimit-remaining": "8"
+    },
+    "json": {
+      "ExcelAddInVersion": "2.1.0",
+      "apiVersion": "2.1.13",
+      "request": {
+        "command": "/v2/electricity/retail-sales/data/",
+        "params": {
+          "api_key": "SCRUBBED",
+          "data": [
+            "price"
+          ],
+          "facets": {
+            "sectorid": [
+              "RES"
+            ],
+            "stateid": [
+              "CO"
+            ]
+          },
+          "frequency": "monthly",
+          "length": "12",
+          "sort": [
+            {
+              "column": "period",
+              "direction": "desc"
+            }
+          ]
+        }
+      },
+      "response": {
+        "data": [
+          {
+            "period": "2026-04",
+            "price": "16.54",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2026-03",
+            "price": "16.74",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2026-02",
+            "price": "16.79",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2026-01",
+            "price": "16.44",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-12",
+            "price": "16.12",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-11",
+            "price": "16.35",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-10",
+            "price": "16.26",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-09",
+            "price": "16.7",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-08",
+            "price": "16.37",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-07",
+            "price": "15.99",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-06",
+            "price": "16.04",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          },
+          {
+            "period": "2025-05",
+            "price": "15.58",
+            "price-units": "cents per kilowatt-hour",
+            "sectorName": "residential",
+            "sectorid": "RES",
+            "stateDescription": "Colorado",
+            "stateid": "CO"
+          }
+        ],
+        "dateFormat": "YYYY-MM",
+        "description": "Electricity sales to ultimate customer by state and sector (number of customers, average price, revenue, and megawatthours of sales).  \n    Sources: Forms EIA-826, EIA-861, EIA-861M",
+        "frequency": "monthly",
+        "total": "304"
+      },
+      "warnings": [
+        {
+          "description": "The API can only return 5000 rows in JSON format.  Please consider constraining your request with facet, start, or end, or using offset to paginate results.",
+          "warning": "incomplete return"
+        }
+      ]
+    },
+    "status": 200
+  }
+}
