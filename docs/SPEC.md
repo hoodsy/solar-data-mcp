@@ -229,3 +229,48 @@ Inverse solve: target annual kWh → required kW (search over cached PVWatts cal
 
 Full registry (Phases 2–4 sources, link index) lives in the Notion sub-page
 "Data Source Registry".
+
+---
+
+# Phase 2 — solar-economics server (SHIPPED)
+
+Tools: `lookup_tariffs` (URDB v8, normalized flat/tiered view, TOU flagged not
+simulated), `get_electricity_prices` (EIA v2 state averages + trend),
+`get_incentives` (hardcoded federal ITC table per 26 USC §25D with citation +
+DSIRE snapshot programs with vintage), `sync_incentives` (bulk loader), and the
+composite `estimate_roi`: estimate_production (library import) → tariff (EIA
+fallback with state=XX) → ITC → 25-year cash flow (payback/NPV/IRR) with a
+per-component audit trail. Financial math is pure (`economics.py`), tested
+against hand-computed cases. Always warns "screening estimate".
+
+Install cost default: Tracking the Sun state median when a snapshot is synced
+(Phase 3), else a cited national median constant.
+
+# Phase 3 — solar-market server (SHIPPED)
+
+Bulk tier: `sync_tracking_the_sun` (streams multi-GB CSVs into DuckDB, column
+mapping validated, optional state filter) and `sync_solartrace` — the only
+writers. Query tools: `query_installed_systems` (aggregates only; median $/W,
+size quartiles, top equipment), `get_permitting_timelines` (SolarTRACE medians
+by state/jurisdiction), `find_utility_scale_projects` (USPVDB PostgREST API —
+filter syntax `p_state=eq.CO`, no auth), `identify_ahj` (SunSpec registry,
+token via support@sunspec.org; degrades into setup instructions without one),
+`market_snapshot` (best-effort composite with audit trail). Every bulk-backed
+result cites its snapshot vintage.
+
+# Phase 4 — solar-forecast server (SHIPPED)
+
+`forecast_generation` (hourly kW series ≤48h) and `compare_forecast_to_model`
+(forecast vs PVWatts TMY spread uniformly over the month's hours — the
+simplification is stated in assumptions; non-24h-multiple horizons warn).
+
+> **Dependency deviation:** quartz-solar-forecast pins pydantic==2.6.2, which
+> conflicts with the MCP SDK — it is NOT a declared dependency. The model sits
+> behind a Predictor seam (lazy import + install instructions; tests stub it;
+> CI never loads the ML stack). Install steps in the package README.
+
+# Excluded from this build
+
+google-solar adapter (optional, bring-your-own-key, requires GCP billing —
+CLAUDE.md keeps it out of scope unless requested), PVDAQ, TOU tariff
+simulation, REopt (all deferred to v2 by the roadmap).

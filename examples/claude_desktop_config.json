@@ -3,9 +3,25 @@
     "nrel-solar": {
       "command": "uvx",
       "args": ["--from", "solar-mcp-nrel", "nrel-solar-mcp"],
+      "env": { "NREL_API_KEY": "YOUR_KEY_HERE" }
+    },
+    "solar-economics": {
+      "command": "uvx",
+      "args": ["--from", "solar-mcp-economics", "solar-economics-mcp"],
       "env": {
-        "NREL_API_KEY": "YOUR_KEY_HERE"
+        "NREL_API_KEY": "YOUR_KEY_HERE",
+        "OPENEI_API_KEY": "YOUR_KEY_HERE",
+        "EIA_API_KEY": "YOUR_KEY_HERE"
       }
+    },
+    "solar-market": {
+      "command": "uvx",
+      "args": ["--from", "solar-mcp-market", "solar-market-mcp"]
+    },
+    "solar-forecast": {
+      "command": "uvx",
+      "args": ["--from", "solar-mcp-forecast", "solar-forecast-mcp"],
+      "env": { "NREL_API_KEY": "YOUR_KEY_HERE" }
     }
   }
 }

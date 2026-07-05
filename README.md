@@ -10,12 +10,17 @@ Every tool returns the same envelope — `data` + `units` + `source` + `assumpti
 `warnings` — so an agent always knows what a number means, where it came from, and which
 defaults were injected on its behalf. Nothing is ever silently defaulted.
 
-| Server | Data | Status |
+| Server | Data | Tools |
 |---|---|---|
-| `solar-mcp-nrel` | PVWatts v8 production modeling, NSRDB irradiance | **v0.1** |
-| `solar-mcp-economics` | Tariffs (URDB), prices (EIA), incentives (DSIRE) | planned |
-| `solar-mcp-market` | Permit timelines, installed systems, utility-scale plants | planned |
-| `solar-mcp-forecast` | Quartz open-source generation forecasts | planned |
+| `solar-mcp-nrel` | PVWatts v8 production modeling, NSRDB irradiance | estimate_production, get_solar_resource, compare_orientations, size_system_for_target |
+| `solar-mcp-economics` | Tariffs (URDB), prices (EIA v2), incentives (federal ITC + DSIRE) | lookup_tariffs, get_electricity_prices, get_incentives, sync_incentives, **estimate_roi** |
+| `solar-mcp-market` | Permitting timelines (SolarTRACE), installed systems (Tracking the Sun), utility-scale plants (USPVDB), AHJ lookup | sync_* loaders, query_installed_systems, get_permitting_timelines, find_utility_scale_projects, identify_ahj, market_snapshot |
+| `solar-mcp-forecast` | Quartz open-source generation forecasts (OCF) | forecast_generation, compare_forecast_to_model |
+
+Console scripts: `nrel-solar-mcp`, `solar-economics-mcp`, `solar-market-mcp`,
+`solar-forecast-mcp` — each is one line of Claude Desktop config. API keys:
+NREL for production/irradiance, OpenEI + EIA for economics (all free); USPVDB
+and the forecast model need none.
 
 ## Quickstart (≈5 minutes)
 
