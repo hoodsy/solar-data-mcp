@@ -86,7 +86,55 @@ DSIRE = SourceConfig(
     # Bulk-download source: refreshed via sync_incentives, no cheap liveness ping.
 )
 
-SOURCES: dict[str, SourceConfig] = {config.name: config for config in (NREL, OPENEI, EIA, DSIRE)}
+USPVDB = SourceConfig(
+    name="uspvdb",
+    base_url="https://energy.usgs.gov",
+    auth_style="none",
+    rate_limit_per_hour=600,
+    cache_ttl_seconds=30 * 86400,  # facility data updates quarterly
+    license_note="USGS/LBNL US Large-Scale Solar Photovoltaic Database — public domain",
+    docs_url="https://energy.usgs.gov/uspvdb/api-doc/",
+    ping_path="/api/uspvdb/v1/projects",
+    ping_params={"limit": 1},
+)
+
+AHJ = SourceConfig(
+    name="ahj",
+    base_url="https://ahjregistry.sunspec.org",
+    api_key_env="AHJ_REGISTRY_TOKEN",
+    auth_style="token_header",
+    required=False,  # token is issued by email from support@sunspec.org
+    rate_limit_per_hour=100,  # registry access is throttled
+    cache_ttl_seconds=90 * 86400,  # AHJ boundaries change rarely
+    license_note="SunSpec AHJ Registry — token access, throttled",
+    docs_url="https://sunspec.org/ahj-registry/",
+    signup_url="mailto:support@sunspec.org",
+)
+
+TRACKING_THE_SUN = SourceConfig(
+    name="tts",
+    base_url="https://emp.lbl.gov",
+    auth_style="none",
+    rate_limit_per_hour=10,
+    cache_ttl_seconds=0,  # bulk downloads only, via sync_tracking_the_sun
+    license_note="LBNL Tracking the Sun — public data files, cached locally, never re-hosted",
+    docs_url="https://emp.lbl.gov/tracking-the-sun",
+)
+
+SOLARTRACE = SourceConfig(
+    name="solartrace",
+    base_url="https://maps.nlr.gov",
+    auth_style="none",
+    rate_limit_per_hour=10,
+    cache_ttl_seconds=0,  # bulk downloads only, via sync_solartrace
+    license_note="NREL SolarTRACE — public dataset, cached locally",
+    docs_url="https://maps.nlr.gov/solarTRACE/",
+)
+
+SOURCES: dict[str, SourceConfig] = {
+    config.name: config
+    for config in (NREL, OPENEI, EIA, DSIRE, USPVDB, AHJ, TRACKING_THE_SUN, SOLARTRACE)
+}
 
 
 def cache_dir() -> Path:

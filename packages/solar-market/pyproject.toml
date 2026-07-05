@@ -1,0 +1,39 @@
+[project]
+name = "solar-mcp-market"
+version = "0.1.0"
+description = "MCP server for US solar market data: permitting timelines (SolarTRACE), installed systems (Tracking the Sun), utility-scale plants (USPVDB), AHJ lookup"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Logan Bernard" }]
+keywords = ["solar", "mcp", "solartrace", "tracking-the-sun", "uspvdb", "ahj", "open-data"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "solar-mcp-core>=0.1,<0.2",
+    "mcp>=1.26,<2",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "duckdb>=1.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/loganbernard/solar-data-mcp"
+
+[project.scripts]
+solar-market-mcp = "solar_mcp_market.server:main"
+
+[tool.uv.sources]
+solar-mcp-core = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/solar_mcp_market"]

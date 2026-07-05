@@ -1,0 +1,21 @@
+{
+  "hand_authored": true,
+  "key": "https://ahjregistry.sunspec.org/api/v1/ahj/?latitude=39.74&longitude=-105.18",
+  "response": {
+    "headers": {},
+    "json": {
+      "count": 1,
+      "results": [
+        {
+          "AHJLevelCode": "050",
+          "AHJName": "Boulder County",
+          "BuildingCode": "2021 IBC",
+          "ElectricCode": "2023 NEC",
+          "FireCode": "2021 IFC",
+          "ResidentialCode": "2021 IRC"
+        }
+      ]
+    },
+    "status": 200
+  }
+}

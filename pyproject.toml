@@ -27,17 +27,21 @@ mypy_path = [
     "packages/core/src",
     "packages/nrel-solar/src",
     "packages/solar-economics/src",
+    "packages/solar-market/src",
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
+    "packages/solar-market/tests",
 ]
 files = [
     "packages/core/src",
     "packages/nrel-solar/src",
     "packages/solar-economics/src",
+    "packages/solar-market/src",
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
+    "packages/solar-market/tests",
     "conftest.py",
     "examples",
 ]
@@ -52,6 +56,7 @@ testpaths = [
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
+    "packages/solar-market/tests",
 ]
 
 # Coverage is a CI gate (`pytest --cov=solar_mcp_core --cov=solar_mcp_nrel`),

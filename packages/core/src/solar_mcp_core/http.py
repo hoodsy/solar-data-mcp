@@ -54,7 +54,7 @@ def _iso(epoch: float) -> str:
 class FetchedResponse:
     """Parsed JSON plus the provenance details tools need for SourceRef."""
 
-    data: dict[str, Any]
+    data: Any  # parsed JSON — an object for most sources, an array for PostgREST ones
     url: str  # canonical URL, api_key excluded
     retrieved_at: str  # ISO 8601 UTC
     from_cache: bool

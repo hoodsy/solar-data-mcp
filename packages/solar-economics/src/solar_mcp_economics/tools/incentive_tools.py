@@ -1,16 +1,13 @@
 """get_incentives and sync_incentives: federal ITC table + DSIRE snapshots."""
 
-import os
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
-import httpx
 from solar_mcp_core import units
-from solar_mcp_core.bulk import BulkStore
+from solar_mcp_core.bulk import BulkStore, fetch_to_tempfile
 from solar_mcp_core.config import DSIRE
 from solar_mcp_core.envelope import SourceRef, ToolResult
-from solar_mcp_core.errors import BadInput, SourceUnavailable
+from solar_mcp_core.errors import BadInput
 
 from solar_mcp_economics.economics import ITC_CITATION
 from solar_mcp_economics.incentives import (
@@ -88,7 +85,7 @@ async def sync_incentives(
         assumptions.append(f"vintage not provided; recorded as today ({vintage})")
 
     if source.startswith(("http://", "https://")):
-        csv_path = await _download(source)
+        csv_path = await fetch_to_tempfile(source, source=DSIRE.name)
         cleanup = csv_path
     else:
         csv_path = Path(source)
@@ -123,28 +120,6 @@ async def sync_incentives(
         assumptions=assumptions,
         warnings=[],
     )
-
-
-async def _download(url: str) -> Path:
-    descriptor, name = tempfile.mkstemp(suffix=".csv")
-    os.close(descriptor)
-    path = Path(name)
-    try:
-        async with (
-            httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client,
-            client.stream("GET", url) as response,
-        ):
-            if response.status_code != 200:
-                raise SourceUnavailable(
-                    DSIRE.name, f"snapshot download failed: HTTP {response.status_code}"
-                )
-            with path.open("wb") as out:
-                async for chunk in response.aiter_bytes():
-                    out.write(chunk)
-    except httpx.TransportError as exc:
-        path.unlink(missing_ok=True)
-        raise SourceUnavailable(DSIRE.name, f"snapshot download failed: {exc}") from exc
-    return path
 
 
 def _now_iso() -> str:

@@ -7,13 +7,18 @@ The `duckdb` dependency is declared by the packages that use this module
 (solar-mcp-economics, solar-mcp-market), keeping solar-mcp-core lightweight.
 """
 
+import os
 import re
+import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from solar_mcp_core.config import cache_dir
+from solar_mcp_core.errors import SourceUnavailable
 
 _META_SCHEMA = """
 CREATE TABLE IF NOT EXISTS _meta (
@@ -99,6 +104,10 @@ class BulkStore:
         result = self._conn.execute(sql, params or [])
         return [tuple(row) for row in result.fetchall()]
 
+    def execute(self, sql: str, params: list[Any] | None = None) -> None:
+        """Run DDL/DML (CREATE TABLE AS, DROP) — for sync loaders' transforms."""
+        self._conn.execute(sql, params or [])
+
     def close(self) -> None:
         self._conn.close()
 
@@ -110,3 +119,28 @@ def _check_identifier(name: str) -> None:
 
 def _now_iso() -> str:
     return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+async def fetch_to_tempfile(url: str, *, source: str, suffix: str = ".csv") -> Path:
+    """Stream a bulk file to a temp path (sync_* tools); caller deletes it.
+
+    Plain httpx rather than SolarHttpClient: bulk files are not JSON and
+    must never enter the HTTP cache tier.
+    """
+    descriptor, name = tempfile.mkstemp(suffix=suffix)
+    os.close(descriptor)
+    path = Path(name)
+    try:
+        async with (
+            httpx.AsyncClient(follow_redirects=True, timeout=300.0) as client,
+            client.stream("GET", url) as response,
+        ):
+            if response.status_code != 200:
+                raise SourceUnavailable(source, f"download failed: HTTP {response.status_code}")
+            with path.open("wb") as out:
+                async for chunk in response.aiter_bytes():
+                    out.write(chunk)
+    except httpx.TransportError as exc:
+        path.unlink(missing_ok=True)
+        raise SourceUnavailable(source, f"download failed: {exc}") from exc
+    return path
