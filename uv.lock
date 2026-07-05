@@ -13,6 +13,7 @@ resolution-markers = [
 members = [
     "solar-mcp-core",
     "solar-mcp-economics",
+    "solar-mcp-forecast",
     "solar-mcp-market",
     "solar-mcp-nrel",
 ]
@@ -1084,6 +1085,27 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "duckdb", specifier = ">=1.1" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "mcp", specifier = ">=1.26,<2" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "solar-mcp-core", editable = "packages/core" },
+    { name = "solar-mcp-nrel", editable = "packages/nrel-solar" },
+]
+
+[[package]]
+name = "solar-mcp-forecast"
+version = "0.1.0"
+source = { editable = "packages/solar-forecast" }
+dependencies = [
+    { name = "httpx" },
+    { name = "mcp" },
+    { name = "pydantic" },
+    { name = "solar-mcp-core" },
+    { name = "solar-mcp-nrel" },
+]
+
+[package.metadata]
+requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "pydantic", specifier = ">=2.7" },

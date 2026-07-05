@@ -28,27 +28,31 @@ mypy_path = [
     "packages/nrel-solar/src",
     "packages/solar-economics/src",
     "packages/solar-market/src",
+    "packages/solar-forecast/src",
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
     "packages/solar-market/tests",
+    "packages/solar-forecast/tests",
 ]
 files = [
     "packages/core/src",
     "packages/nrel-solar/src",
     "packages/solar-economics/src",
     "packages/solar-market/src",
+    "packages/solar-forecast/src",
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
     "packages/solar-market/tests",
+    "packages/solar-forecast/tests",
     "conftest.py",
     "examples",
 ]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = "duckdb"
+module = ["duckdb", "quartz_solar_forecast.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -57,6 +61,7 @@ testpaths = [
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
     "packages/solar-market/tests",
+    "packages/solar-forecast/tests",
 ]
 
 # Coverage is a CI gate (`pytest --cov=solar_mcp_core --cov=solar_mcp_nrel`),
