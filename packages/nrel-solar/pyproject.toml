@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/loganbernard/solar-data-mcp"
+Homepage = "https://github.com/hoodsy/solar-mcp"
 
 [project.scripts]
 nrel-solar-mcp = "solar_mcp_nrel.server:main"

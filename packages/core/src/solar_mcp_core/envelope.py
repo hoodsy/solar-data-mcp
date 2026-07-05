@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-REPO_URL = "https://github.com/loganbernard/solar-data-mcp"
+REPO_URL = "https://github.com/hoodsy/solar-mcp"
 
 
 class SourceRef(BaseModel):

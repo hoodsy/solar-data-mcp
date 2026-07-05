@@ -56,7 +56,7 @@ launches the server the same way Claude Desktop does, lists its tools, and runs 
 AZ tilt comparison:
 
 ```console
-$ git clone https://github.com/loganbernard/solar-data-mcp && cd solar-data-mcp
+$ git clone https://github.com/hoodsy/solar-mcp && cd solar-data-mcp
 $ uv sync
 $ NREL_API_KEY=DEMO_KEY uv run python examples/example_client.py
 Tools exposed by nrel-solar:
@@ -114,7 +114,7 @@ The server also exposes MCP resources `source://nrel/license` and
 ## Development
 
 ```console
-$ git clone https://github.com/loganbernard/solar-data-mcp && cd solar-data-mcp
+$ git clone https://github.com/hoodsy/solar-mcp && cd solar-data-mcp
 $ uv sync                  # install the workspace
 $ uv run pytest            # fixture replay only, no network
 $ uv run ruff check . && uv run mypy

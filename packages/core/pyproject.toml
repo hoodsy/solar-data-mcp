@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/loganbernard/solar-data-mcp"
+Homepage = "https://github.com/hoodsy/solar-mcp"
 
 [project.scripts]
 solar-mcp = "solar_mcp_core.cli:main"

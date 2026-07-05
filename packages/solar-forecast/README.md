@@ -3,7 +3,7 @@
 MCP server wrapping the open [Quartz Solar Forecast](https://github.com/openclimatefix/quartz-solar-forecast)
 model (Open Climate Fix): 48-hour generation forecasts plus "is today unusual?"
 comparisons against PVWatts TMY expectations. No API key needed.
-Part of [solar-data-mcp](https://github.com/loganbernard/solar-data-mcp).
+Part of [solar-data-mcp](https://github.com/hoodsy/solar-mcp).
 
 ## Installing the model
 
