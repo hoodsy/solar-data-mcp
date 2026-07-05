@@ -25,6 +25,7 @@ from solar_mcp_core.config import SourceConfig, api_key_for, debug_enabled
 from solar_mcp_core.envelope import SourceRef
 from solar_mcp_core.errors import QuotaExceeded, SourceUnavailable
 from solar_mcp_core.ratelimit import TokenBucket
+from solar_mcp_core.redact import scrub_secret
 
 _MAX_ATTEMPTS = 3
 _BACKOFF_SECONDS = (1.0, 2.0, 4.0)
@@ -132,20 +133,25 @@ class SolarHttpClient:
             )
 
         remaining = _remaining_header(response)
+        # Sources echo the request api_key in their body (PVWatts under `inputs`,
+        # EIA under `request.params`). Redact before it can reach the on-disk
+        # cache or the returned envelope — scrubbing a JSON string value keeps
+        # the body valid JSON.
+        body = scrub_secret(response.text, api_key_for(self.config))
         try:
-            data = json.loads(response.text)
+            data = json.loads(body)
         except json.JSONDecodeError as exc:
             # Never cache an unparseable body — a single proxy hiccup would
             # otherwise poison this key for the whole TTL.
             raise SourceUnavailable(
                 self.config.name,
-                f"non-JSON response (HTTP {response.status_code}): {response.text[:120]!r}",
+                f"non-JSON response (HTTP {response.status_code}): {body[:120]!r}",
             ) from exc
         entry = self._cache.put(
             key,
             source=self.config.name,
             status=response.status_code,
-            body=response.text,
+            body=body,
             ttl_seconds=self.config.cache_ttl_seconds,
         )
         return FetchedResponse(
@@ -242,8 +248,6 @@ def _client_error_detail(response: httpx.Response, config: SourceConfig) -> str:
     if response.status_code == 403 and config.api_key_env is not None:
         hint = f" (get a free key: {config.signup_url})" if config.signup_url else ""
         return f"HTTP 403 — API key rejected; check {config.api_key_env}{hint}"
-    body = response.text[:200]
-    api_key = api_key_for(config)
-    if api_key:  # error bodies can echo request inputs, including the key
-        body = body.replace(api_key, "REDACTED")
+    # Error bodies can echo request inputs, including the key (raw or URL-encoded).
+    body = scrub_secret(response.text[:200], api_key_for(config))
     return f"HTTP {response.status_code}: {body}"

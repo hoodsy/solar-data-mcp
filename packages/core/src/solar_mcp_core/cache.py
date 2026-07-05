@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlencode
 
-from solar_mcp_core.config import cache_dir
+from solar_mcp_core.config import cache_dir, ensure_private_dir, harden_file_perms
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS http_cache (
@@ -70,8 +70,10 @@ class HttpCache:
         self._clock = clock
         db_path = path if path is not None else cache_dir() / "http.db"
         if isinstance(db_path, Path):
-            db_path.parent.mkdir(parents=True, exist_ok=True)
+            ensure_private_dir(db_path.parent)  # cache holds api-key-adjacent bodies
         self._conn = sqlite3.connect(db_path)
+        if isinstance(db_path, Path):
+            harden_file_perms(db_path)
         self._conn.execute(_SCHEMA)
         self._conn.commit()
 

@@ -218,17 +218,22 @@ Inverse solve: target annual kWh → required kW (search over cached PVWatts cal
 ## CI (GitHub Actions)
 
 - Matrix: py3.11/3.12 × {lint, typecheck, test}
-- `uv` for install; ruff + mypy strict gate
+- `uv` for install (`--frozen`, so the committed lock is what ships); ruff + mypy strict gate
 - Coverage floor 85% on core + Phase 1
-- Release: tag → build → publish changed packages to PyPI
+- Dependabot (uv + github-actions) for dependency CVE surfacing
+- Release: push a `v*` tag → `.github/workflows/release.yml` builds and publishes all six
+  packages to PyPI via Trusted Publishing (OIDC — no stored token), deps before the umbrella
 
 ## Release checklist (every version)
 
 - [ ] Fixtures re-recorded within 30 days
 - [ ] `solar-data-mcp doctor` passes against live sources
-- [ ] Publish order: core + domain packages before `solar-data-mcp` (uvx resolution)
+- [ ] One-time: register each of the six PyPI names as a Trusted Publisher for this
+      repo's `release.yml` + `pypi` environment (https://docs.pypi.org/trusted-publishers/)
+- [ ] Tag `vX.Y.Z` — release.yml publishes deps before the umbrella automatically
 - [ ] Demo prompt transcript updated in README
 - [ ] MCP registry listings updated
+- [ ] Security disclosure path (SECURITY.md) current
 
 ---
 

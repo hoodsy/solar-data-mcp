@@ -6,6 +6,7 @@ The registry lives in core so `solar-data-mcp doctor` can iterate every known
 source without importing server packages.
 """
 
+import contextlib
 import os
 from pathlib import Path
 from typing import Literal
@@ -143,6 +144,24 @@ def cache_dir() -> Path:
     if override:
         return Path(override)
     return Path.home() / ".cache" / "solar-data-mcp"
+
+
+def ensure_private_dir(path: Path) -> None:
+    """Create `path` (and parents) restricted to the owner.
+
+    The cache can hold the api_key echoed in a response body and locally synced
+    bulk data, so it must not be group/world-readable. mkdir's mode is masked by
+    umask, so chmod explicitly; best-effort on platforms without POSIX perms.
+    """
+    path.mkdir(parents=True, exist_ok=True)
+    with contextlib.suppress(OSError):  # non-POSIX filesystems: best-effort
+        path.chmod(0o700)
+
+
+def harden_file_perms(path: Path) -> None:
+    """Restrict a cache DB file to owner read/write. Best-effort (see above)."""
+    with contextlib.suppress(OSError):  # non-POSIX filesystems / :memory:
+        path.chmod(0o600)
 
 
 def debug_enabled() -> bool:

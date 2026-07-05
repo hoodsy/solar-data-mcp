@@ -2,7 +2,6 @@
 
 import asyncio
 from datetime import UTC, datetime
-from pathlib import Path
 
 from solar_mcp_core import units
 from solar_mcp_core.bulk import (
@@ -15,6 +14,7 @@ from solar_mcp_core.bulk import (
 from solar_mcp_core.config import DSIRE
 from solar_mcp_core.envelope import SourceRef, ToolResult, utc_now_iso
 from solar_mcp_core.errors import BadInput
+from solar_mcp_core.localfile import resolve_local_data_file
 from solar_mcp_core.validation import validate_state
 
 from solar_mcp_economics.economics import ITC_CITATION
@@ -88,20 +88,15 @@ async def sync_incentives(
     """Load a DSIRE program export (local path or https URL) into the bulk store."""
     vintage, assumptions = default_vintage(vintage)
 
-    if source.startswith(("http://", "https://")):
-        csv_path = await fetch_to_tempfile(source, source=DSIRE.name)
+    if "://" in source:
+        csv_path = await fetch_to_tempfile(source, config=DSIRE)
         cleanup = csv_path
     else:
-        csv_path = Path(source)
+        csv_path = resolve_local_data_file(source)
         cleanup = None
-        if not csv_path.is_file():
-            raise BadInput(
-                field="source",
-                value=source,
-                allowed=f"existing CSV path or https URL. {DSIRE_DOWNLOAD_HELP}",
-            )
     try:
-        count = await asyncio.to_thread(sync_snapshot, store, csv_path, vintage)
+        async with store.write_lock:
+            count = await asyncio.to_thread(sync_snapshot, store, csv_path, vintage)
     except ValueError as exc:
         raise BadInput(field="source", value=source, allowed=str(exc)) from exc
     finally:

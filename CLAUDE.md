@@ -38,5 +38,8 @@ solar-market, solar-forecast. Work one phase/package at a time; keep every gate 
 - [x] Phase 1–4 tools shipped with fixture tests and envelope completeness asserted
 - Gates for any new work: `uv run pytest` green (replay only), ruff + mypy --strict clean,
   coverage ≥85% (CI), fixtures scrubbed of keys, every injected default in `assumptions`
-- Release steps that remain manual: PyPI upload (core + domain packages BEFORE
-  solar-data-mcp, or `uvx solar-data-mcp` cannot resolve), MCP registry listings, demo GIF
+- Release: push a `v*` tag → `.github/workflows/release.yml` publishes all six packages to
+  PyPI via Trusted Publishing (OIDC, deps before the umbrella). One-time: register the six
+  names as trusted publishers on PyPI. Still manual: MCP registry listings, demo GIF
+- Security: vuln disclosure via SECURITY.md; sync_* downloads are restricted to each
+  dataset's official host; secrets are scrubbed from the cache/logs/envelopes

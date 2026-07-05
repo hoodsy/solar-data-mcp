@@ -18,7 +18,9 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: uv sync --all-packages
+      # --frozen: install exactly the committed uv.lock; a drifted lock fails CI
+      # so the audited dependency set is what actually ships.
+      - run: uv sync --all-packages --frozen
       # Tests are replay-only: fixtures/<source>/ answers every request
       # in-process, and no API-key secrets exist in CI, so live calls are impossible.
       - run: |

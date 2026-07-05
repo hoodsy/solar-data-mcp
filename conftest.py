@@ -266,12 +266,19 @@ class RecordingTransport(httpx.AsyncBaseTransport):
         )
 
 
+# Field names that carry a credential in any source's echoed request/response.
+# api_key: PVWatts (`inputs`), EIA (`request`); the rest guard token-header
+# sources (e.g. AHJ) so a future re-record can never commit a live token.
+SECRET_FIELD_NAMES = frozenset(
+    {"api_key", "token", "access_token", "authorization", "x-api-key", "apikey"}
+)
+
+
 def _scrub_api_keys(value: Any) -> Any:
-    """Recursively blank any api_key field — sources echo it in different places
-    (PVWatts under `inputs`, EIA under `request`)."""
+    """Recursively blank any credential-bearing field (see SECRET_FIELD_NAMES)."""
     if isinstance(value, dict):
         return {
-            k: ("SCRUBBED" if k.lower() == "api_key" else _scrub_api_keys(v))
+            k: ("SCRUBBED" if k.lower() in SECRET_FIELD_NAMES else _scrub_api_keys(v))
             for k, v in value.items()
         }
     if isinstance(value, list):

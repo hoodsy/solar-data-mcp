@@ -73,7 +73,12 @@ def sync_snapshot(store: BulkStore, csv_path: Any, vintage: str) -> int:
                 f"DSIRE export is missing expected columns {missing}; got {sorted(columns)}. "
                 + DSIRE_DOWNLOAD_HELP
             )
-        store.execute(f'CREATE OR REPLACE TABLE {TABLE} AS SELECT * FROM "{staging}"')
+        # Project only the known columns (never SELECT *): an attacker-supplied
+        # CSV cannot inject extra columns into the store or smuggle text back to
+        # the agent through an unexpected field. `expiry` is optional in exports.
+        projected = [*REQUIRED_COLUMNS, *(["expiry"] if "expiry" in columns else [])]
+        projection = ", ".join(projected)
+        store.execute(f'CREATE OR REPLACE TABLE {TABLE} AS SELECT {projection} FROM "{staging}"')
         store.set_vintage(DATASET, vintage)
         return count
     finally:

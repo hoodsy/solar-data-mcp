@@ -8,6 +8,7 @@ The `duckdb` dependency is declared by the packages that use this module
 lightweight.
 """
 
+import asyncio
 import os
 import re
 import tempfile
@@ -18,9 +19,15 @@ from typing import Any
 import httpx
 
 from solar_mcp_core import units
-from solar_mcp_core.config import cache_dir
+from solar_mcp_core.config import (
+    SourceConfig,
+    cache_dir,
+    ensure_private_dir,
+    harden_file_perms,
+)
 from solar_mcp_core.envelope import SourceRef, ToolResult, utc_now_iso
-from solar_mcp_core.errors import SourceUnavailable
+from solar_mcp_core.errors import BadInput, SourceUnavailable
+from solar_mcp_core.net import assert_allowed_download_url
 
 _META_SCHEMA = """
 CREATE TABLE IF NOT EXISTS _meta (
@@ -64,9 +71,16 @@ class BulkStore:
             ) from exc
         db = path if path is not None else cache_dir() / "bulk.duckdb"
         if isinstance(db, Path):
-            db.parent.mkdir(parents=True, exist_ok=True)
+            ensure_private_dir(db.parent)  # bulk store holds locally synced data
         self._conn = duckdb.connect(str(db))
+        if isinstance(db, Path):
+            harden_file_perms(db)
         self._conn.execute(_META_SCHEMA)
+        # Serializes sync_* stage-validate-swap sections. The umbrella shares one
+        # store across all tool families, and every sync uses the same staging
+        # table on a single (non-thread-safe) DuckDB connection, so concurrent
+        # syncs must not overlap.
+        self.write_lock = asyncio.Lock()
 
     def stage_csv(self, table: str, csv_path: Path) -> int:
         """Load a CSV into `table` WITHOUT touching any vintage; return row count.
@@ -139,32 +153,71 @@ def _check_identifier(name: str) -> None:
         raise ValueError(f"invalid table name: {name!r}")
 
 
-async def fetch_to_tempfile(url: str, *, source: str, suffix: str = ".csv") -> Path:
-    """Stream a bulk file to a temp path (sync_* tools); caller deletes it.
+# Ceiling above the largest real dataset (Tracking the Sun is ~1-2 GB); bounds
+# disk use from a hostile or misconfigured endpoint without blocking real files.
+MAX_DOWNLOAD_BYTES = 4 * 1024**3
+_STREAM_TIMEOUT = 60.0  # per-connect/read; a stall aborts the socket
+_TOTAL_TIMEOUT = 3600.0  # wall-clock ceiling; defeats a slow-drip that resets read timeouts
 
-    Plain httpx rather than SolarHttpClient: bulk files are not JSON and
-    must never enter the HTTP cache tier.
+
+async def fetch_to_tempfile(url: str, *, config: SourceConfig, suffix: str = ".csv") -> Path:
+    """Stream a dataset's bulk file to a temp path (sync_* tools); caller deletes it.
+
+    Restricted to the dataset's official https host (see net.assert_allowed_download_url):
+    the agent-supplied `source` is untrusted, so this must not become an SSRF or
+    internal-fetch primitive. Redirects are refused, and the transfer is bounded
+    in both size and wall-clock time. Plain httpx rather than SolarHttpClient —
+    bulk files are not JSON and must never enter the HTTP cache tier.
     """
+    assert_allowed_download_url(url, config)
     descriptor, name = tempfile.mkstemp(suffix=suffix)
     os.close(descriptor)
     path = Path(name)
     try:
-        async with (
-            httpx.AsyncClient(follow_redirects=True, timeout=300.0) as client,
-            client.stream("GET", url) as response,
-        ):
-            if response.status_code != 200:
-                raise SourceUnavailable(source, f"download failed: HTTP {response.status_code}")
-            with path.open("wb") as out:
-                async for chunk in response.aiter_bytes():
-                    out.write(chunk)
+        await asyncio.wait_for(_stream_to_file(url, config.name, path), _TOTAL_TIMEOUT)
+    except TimeoutError as exc:
+        path.unlink(missing_ok=True)
+        raise SourceUnavailable(config.name, f"download exceeded {_TOTAL_TIMEOUT:.0f}s") from exc
     except httpx.TransportError as exc:
         path.unlink(missing_ok=True)
-        raise SourceUnavailable(source, f"download failed: {exc}") from exc
-    except BaseException:  # HTTP-status failures, cancellation — never leak the temp file
+        raise SourceUnavailable(config.name, f"download failed: {type(exc).__name__}") from exc
+    except BaseException:
+        # BadInput, HTTP-status/size failures, cancellation — never leak the temp file.
         path.unlink(missing_ok=True)
         raise
     return path
+
+
+async def _stream_to_file(url: str, source: str, path: Path) -> None:
+    async with (
+        httpx.AsyncClient(follow_redirects=False, timeout=_STREAM_TIMEOUT) as client,
+        client.stream("GET", url) as response,
+    ):
+        if response.is_redirect:
+            raise BadInput(
+                field="source",
+                value=url,
+                allowed=(
+                    "a direct download URL (redirects are refused; "
+                    "pass the final URL or a local file)"
+                ),
+            )
+        if response.status_code != 200:
+            raise SourceUnavailable(source, f"download failed: HTTP {response.status_code}")
+        declared = response.headers.get("Content-Length")
+        if declared is not None and declared.isdigit() and int(declared) > MAX_DOWNLOAD_BYTES:
+            raise SourceUnavailable(
+                source, f"file too large ({declared} bytes; cap {MAX_DOWNLOAD_BYTES})"
+            )
+        written = 0
+        with path.open("wb") as out:
+            async for chunk in response.aiter_bytes():
+                written += len(chunk)
+                if written > MAX_DOWNLOAD_BYTES:
+                    raise SourceUnavailable(
+                        source, f"download exceeded size cap of {MAX_DOWNLOAD_BYTES} bytes"
+                    )
+                out.write(chunk)
 
 
 def default_vintage(vintage: str | None) -> tuple[str, list[str]]:

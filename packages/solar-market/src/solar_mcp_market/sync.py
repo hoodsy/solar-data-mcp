@@ -19,8 +19,9 @@ from solar_mcp_core.bulk import (
     BulkStore,
     fetch_to_tempfile,
 )
-from solar_mcp_core.config import SOLARTRACE, TRACKING_THE_SUN
+from solar_mcp_core.config import SOLARTRACE, TRACKING_THE_SUN, SourceConfig
 from solar_mcp_core.errors import BadInput
+from solar_mcp_core.localfile import resolve_local_data_file
 
 # Canonical columns, or LBNL's raw names which we derive them from.
 TTS_CANONICAL = ("state", "year", "price_per_watt", "size_kw")
@@ -41,14 +42,12 @@ def _columns(store: BulkStore, table: str) -> set[str]:
     return {str(row[0]) for row in store.query(f'DESCRIBE "{table}"')}
 
 
-async def _to_local_file(source: str, source_name: str) -> tuple[Path, bool]:
-    """(path, is_temporary). URLs stream to a temp file the caller deletes."""
-    if source.startswith(("http://", "https://")):
-        return await fetch_to_tempfile(source, source=source_name), True
-    path = Path(source)
-    if not path.is_file():
-        raise BadInput(field="source", value=source, allowed="existing file path or https URL")
-    return path, False
+async def _to_local_file(source: str, config: SourceConfig) -> tuple[Path, bool]:
+    """(path, is_temporary). URLs (official host, https only) stream to a temp
+    file the caller deletes; local paths are validated regular data files."""
+    if "://" in source:
+        return await fetch_to_tempfile(source, config=config), True
+    return resolve_local_data_file(source), False
 
 
 def _stage(store: BulkStore, source: str, path: Path) -> set[str]:
@@ -130,9 +129,10 @@ async def load_tracking_the_sun(
     (installed_price, system_size_DC) from which $/W is derived. Optional
     state filter keeps the local store small.
     """
-    path, is_temp = await _to_local_file(source, TRACKING_THE_SUN.name)
+    path, is_temp = await _to_local_file(source, TRACKING_THE_SUN)
     try:
-        return await asyncio.to_thread(_load_tts_sync, store, source, path, vintage, state)
+        async with store.write_lock:
+            return await asyncio.to_thread(_load_tts_sync, store, source, path, vintage, state)
     finally:
         if is_temp:
             path.unlink(missing_ok=True)
@@ -149,7 +149,13 @@ def _load_solartrace_sync(store: BulkStore, source: str, path: Path, vintage: st
                 allowed=f"a SolarTRACE export with columns {SOLARTRACE_REQUIRED} "
                 f"(missing {missing})",
             )
-        store.execute(f'CREATE OR REPLACE TABLE {SOLARTRACE_TABLE} AS SELECT * FROM "{_STAGING}"')
+        # Project only the known columns (never SELECT *): an attacker-supplied
+        # CSV cannot inject extra columns into the store or smuggle text back to
+        # the agent through an unexpected field.
+        projection = ", ".join(SOLARTRACE_REQUIRED)
+        store.execute(
+            f'CREATE OR REPLACE TABLE {SOLARTRACE_TABLE} AS SELECT {projection} FROM "{_STAGING}"'
+        )
         store.set_vintage(SOLARTRACE_DATASET, vintage)
         row = store.query(f"SELECT count(*) FROM {SOLARTRACE_TABLE}")
         return int(row[0][0])
@@ -158,9 +164,10 @@ def _load_solartrace_sync(store: BulkStore, source: str, path: Path, vintage: st
 
 
 async def load_solartrace(store: BulkStore, *, source: str, vintage: str) -> int:
-    path, is_temp = await _to_local_file(source, SOLARTRACE.name)
+    path, is_temp = await _to_local_file(source, SOLARTRACE)
     try:
-        return await asyncio.to_thread(_load_solartrace_sync, store, source, path, vintage)
+        async with store.write_lock:
+            return await asyncio.to_thread(_load_solartrace_sync, store, source, path, vintage)
     finally:
         if is_temp:
             path.unlink(missing_ok=True)
