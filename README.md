@@ -14,11 +14,24 @@ to Claude, ChatGPT, and anything else that speaks MCP.
 
 </div>
 
-Install one server — `uvx solar-data-mcp` — and your agent gets all 18 tools, plus 11
-skills that teach it how to use them, across four data domains: production modeling,
-economics, market data, and forecasts. Every tool returns the same envelope — `data` +
-`units` + `source` + `assumptions` + `warnings` — so the agent always knows what a
-number means, where it came from, and which defaults were injected on its behalf.
+Install one server — `uvx solar-data-mcp` — and your agent gets all 18 tools, 11
+skills that teach it how to use them, and 4 ready-made report prompts, across four
+data domains: production modeling, economics, market data, and forecasts. Every tool
+returns the same envelope — `data` + `units` + `source` + `assumptions` + `warnings` —
+so the agent always knows what a number means, where it came from, and which defaults
+were injected on its behalf.
+
+## What can you ask it?
+
+- **Thinking about solar at home** — *"Would a 6 kW system pay off at my house?"* ·
+  *"Is this $21,000 quote fair?"* · *"What will my array generate tomorrow?"*
+- **Selling or installing solar** — *"Build a proposal for this customer"* ·
+  *"How long does permitting take in Phoenix?"* · *"Where should we expand next?"*
+- **Studying the market** — *"Brief me on the Texas solar market"* · *"How have
+  installed prices trended in Colorado?"* · *"Which big plants have batteries?"*
+
+Behind each question the agent picks the right tools (or a skill routes it), and every
+number comes back with units, a source, and the assumptions made on your behalf.
 
 ## Quickstart
 
@@ -140,20 +153,6 @@ Full forecast output additionally needs the Quartz model installed into a persis
 environment (see [`packages/solar-forecast/`](packages/solar-forecast/README.md));
 without it the forecast tools return install instructions.
 
-## Example usage
-
-> Compare annual production for an 8 kW system in Mesa, AZ at 10° vs 25° tilt.
-
-The agent calls `compare_orientations`, gets both tilts modeled in one call, and answers
-with production figures, the NREL source, and every assumption the model injected
-(losses, azimuth, weather dataset). More to try:
-
-- *"What's my payback period after incentives?"* → `estimate_roi`
-- *"How long does permitting take in Phoenix, and who issues the permit?"* →
-  `get_permitting_timelines` + `identify_ahj`
-- *"What will my array generate tomorrow?"* → `forecast_generation`
-- *"Brief me on the Texas solar market."* → `market_snapshot`
-
 ## Servers
 
 `uvx solar-data-mcp` — the install above — serves all four domains on one stdio entry.
@@ -175,51 +174,33 @@ Per-server config:
 
 ## Tools
 
-| Domain | Tool | What it does |
+Eighteen tools across four domains; parameter details live in each tool's docstring
+and each domain package's README.
+
+| Domain | Ask it about | Tools |
 |---|---|---|
-| Production | `estimate_production` | Annual and monthly AC production for a PV system (PVWatts v8) |
-| | `get_solar_resource` | Annual/monthly solar irradiance (GHI, DNI) for a location (NSRDB) |
-| | `compare_orientations` | Rank tilt × azimuth combinations by annual production |
-| | `size_system_for_target` | Find the system size (kW) that produces a target annual kWh |
-| Economics | `lookup_tariffs` | Retail electric rate schedules serving a point or utility (URDB) |
-| | `get_electricity_prices` | State average retail electricity price with a monthly trend (EIA v2) |
-| | `get_incentives` | Federal ITC (current law) + state/local programs (DSIRE) |
-| | `sync_incentives` | Load a DSIRE program export into the local store |
-| | `estimate_roi` | Screening ROI: payback, NPV, IRR, 25-yr cash flow |
-| Market | `sync_tracking_the_sun` | Load an LBNL Tracking the Sun release into the local store |
-| | `sync_solartrace` | Load a SolarTRACE export into the local store |
-| | `query_installed_systems` | Aggregate stats from installed systems: median $/W, sizes, equipment |
-| | `get_permitting_timelines` | Median permit, inspection, and interconnection days (SolarTRACE) |
-| | `find_utility_scale_projects` | Ground-mounted utility-scale PV facilities (USPVDB) |
-| | `identify_ahj` | Authority Having Jurisdiction + adopted codes for a point (SunSpec) |
-| | `market_snapshot` | One-call state market overview: installs, $/W, permitting, big projects |
-| Forecast | `forecast_generation` | Hourly generation forecast for the coming hours (Quartz open model) |
-| | `compare_forecast_to_model` | Forecast vs typical-year baseline — "is today unusually sunny?" |
+| [Production](packages/nrel-solar/README.md) | output, sunniness, sizing, roof orientation | `estimate_production`, `get_solar_resource`, `compare_orientations`, `size_system_for_target` |
+| [Economics](packages/solar-economics/README.md) | tariffs, electricity prices, incentives, payback | `lookup_tariffs`, `get_electricity_prices`, `get_incentives`, `estimate_roi`, `sync_incentives` |
+| [Market](packages/solar-market/README.md) | installed $/W, permitting times, utility-scale plants | `query_installed_systems`, `get_permitting_timelines`, `find_utility_scale_projects`, `identify_ahj`, `market_snapshot`, `sync_*` |
+| [Forecast](packages/solar-forecast/README.md) | tomorrow's output, "is today unusual?" | `forecast_generation`, `compare_forecast_to_model` |
 
-## Skills
+## Skills & reports
 
-Skills are markdown procedures, shipped inside the server, that teach an agent how to
-orchestrate the tools end to end — correct ordering, sync prerequisites, which defaults
-to override, and how to report results honestly. They're served as MCP resources:
-`skill://solar/index` is the routing table, `skill://solar/<name>` the skill itself.
-Skill-native hosts (like Claude Code) route on each skill's description automatically;
-plain MCP hosts are pointed at the index by the server's instructions.
+Skills are procedures shipped inside the combined server that teach an agent to chain
+the tools correctly — ordering, sync prerequisites, honest reporting. They're MCP
+resources: `skill://solar/index` routes by question shape, `skill://solar/<name>` is
+the procedure. Grouped by who's asking:
 
-| Skill | Use it for |
-|---|---|
-| `solar-site-assessment` | "Should I go solar?" — sizing, production, incentives, ROI end to end |
-| `solar-quote-review` | Check an installer's bid against market $/W, modeled production, payback |
-| `solar-performance-check` | "Is my system doing what it should?" — forecasts and typical-year baselines |
-| `solar-proposal-builder` | Installer proposal in one pass: design sweep, ROI at real cost, permitting |
-| `solar-territory-expansion` | Compare candidate markets: rates, $/W, permitting friction, incentives |
-| `solar-market-brief` | Standardized state brief: adoption, pricing, policy, infrastructure |
-| `solar-pricing-analysis` | $/W trends and spreads over time and across states |
-| `solar-utility-scale-scout` | Utility-scale landscape: biggest plants, battery share, pipeline |
-| `solar-policy-incentive-scan` | Incentive landscape by state and install year |
-| `solar-data-sync` | Load and refresh the bulk snapshots (Tracking the Sun, SolarTRACE, DSIRE) |
-| `solar-data-conventions` | Envelope literacy: assumptions, warnings, provenance, error recovery |
+- **Homeowners** — site assessment, quote review, performance check
+- **Installers** — proposal builder, territory expansion
+- **Analysts** — market brief, pricing analysis, utility-scale scout, incentive scan
+- **Cross-cutting** — data sync (bulk snapshots), data conventions (envelope literacy)
 
-Design rationale and the full catalog: [`docs/skills.md`](docs/skills.md).
+Four of these render **reports** with a fixed document shape and are also exposed as
+MCP prompts your host surfaces natively — `market_brief`, `site_assessment`,
+`quote_review`, `proposal_builder` (in Claude Code: `/mcp__solar-data__market_brief`).
+
+Full catalog, routing design, and report templates: [`docs/skills.md`](docs/skills.md).
 
 ## Development
 
