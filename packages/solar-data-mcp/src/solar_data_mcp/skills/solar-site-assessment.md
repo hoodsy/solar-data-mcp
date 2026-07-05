@@ -51,3 +51,26 @@ orientation options, use solar-proposal-builder.
 
 Every ROI figure is screening-grade — keep the screening caveat attached, cite
 sources from `data.audit_trail`, and follow solar-data-conventions.
+
+## Report template
+
+When the user wants the assessment as a document, render exactly this shape:
+
+```
+# Solar assessment: <location>
+<date>
+
+## Headline        — payback (yrs), NPV (USD), IRR (%) in one sentence,
+                     with the screening caveat attached
+## Recommended system — size (kW DC), expected production (kWh/yr),
+                     orientation used (flag if defaulted vs user-provided)
+## Economics       — table: gross cost | federal ITC | net cost | year-1
+                     savings | payback | 25-yr NPV (all with units)
+## Incentives      — federal line + state/local list, marked "not netted
+                     into the economics above"
+## What we assumed — the envelope's assumptions list, verbatim
+## Sources         — from data.audit_trail: source, retrieved_at
+```
+
+The "What we assumed" section is mandatory — it is the difference between a
+screening estimate the user can interrogate and a sales number.

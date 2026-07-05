@@ -22,8 +22,26 @@ EXPECTED_SKILLS = {
 }
 
 
+# Deliverable-shaped skills must carry a report template (rendered by the
+# prompts in solar_data_mcp/prompts.py).
+REPORT_SKILLS = {
+    "solar-site-assessment",
+    "solar-quote-review",
+    "solar-market-brief",
+    "solar-proposal-builder",
+}
+
+
 def test_catalog_is_complete() -> None:
     assert {skill.name for skill in load_skills()} == EXPECTED_SKILLS
+
+
+def test_report_skills_have_templates() -> None:
+    for skill in load_skills():
+        has_template = "## Report template" in skill.text
+        assert has_template == (skill.name in REPORT_SKILLS), (
+            f"{skill.name}: report template presence does not match REPORT_SKILLS"
+        )
 
 
 def test_frontmatter_contract() -> None:

@@ -46,6 +46,20 @@ Every tool returns the same envelope: `data` + `units` + `source` +
 - The HTTP cache and bulk store live under `~/.cache/solar-data-mcp`
   (relocatable via SOLAR_DATA_MCP_CACHE_DIR).
 
+## Formatted data (exports)
+
+When the user asks for spreadsheet/CSV-shaped output:
+
+- One column per relevant `data` field, with the unit from the envelope's
+  `units` map in the header: `median_price_per_watt (USD/W)`.
+- One leading comment row citing provenance:
+  `# source: <source.name> · retrieved <retrieved_at> · vintage <vintage>`.
+- Aggregates only — never promise row-level Tracking the Sun records; the
+  tools do not return them.
+- List-shaped data (`ranked[]`, `projects[]`, `trend[]`) becomes one row per
+  element; scalar summary fields go in a separate single-row table rather
+  than being repeated down a column.
+
 ## What not to promise
 
 TOU tariff simulation, REopt-style optimization, PVDAQ measured production,

@@ -42,3 +42,28 @@ Close with a one-paragraph synthesis: what makes this market distinctive.
 ## Reporting
 
 Every section cites source + vintage, per solar-data-conventions.
+
+## Report template
+
+When the user wants the brief as a document, render exactly this shape:
+
+```
+# Solar market brief: <STATE>
+<date> · data vintages: <one per snapshot/source used>
+
+## Adoption        — system count by year window; trend sentence
+## Pricing         — median $/W + p25–p75 (n = system_count), retail cents/kWh + trend
+## Policy          — federal ITC line; state/local program count by type
+## Infrastructure  — top-5 plants table: name | county | MW AC | year | battery
+                     then battery-colocation share and tracking mix
+## Friction        — median permit / inspection / PTO days
+## Synthesis       — one paragraph: what makes this market distinctive
+
+## Data gaps       — one line per unavailable section with its exact unlock
+                     (e.g. "Pricing: no TTS snapshot — sync_tracking_the_sun(...)")
+## Sources         — from data.audit_trail: source, retrieved_at, vintage
+```
+
+Every number keeps its unit; assumptions and warnings print verbatim in the
+sections they affect; never omit the Data gaps section when anything was
+skipped.

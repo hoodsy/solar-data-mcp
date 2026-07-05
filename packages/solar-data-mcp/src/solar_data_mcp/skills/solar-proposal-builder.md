@@ -52,3 +52,28 @@ incentive appendix, and a "what happens after you sign" expectations page.
 Attach the assumption list to every number the customer will see, per
 solar-data-conventions — a proposal that survives the customer's own
 fact-check closes better.
+
+## Report template
+
+When the installer wants the customer package as a document, render exactly
+this shape:
+
+```
+# Solar proposal: <customer location>
+<date> · prepared for <customer> · <company cost basis: $X.XX/W>
+
+## Design options  — table: plane | tilt | azimuth | kWh/yr | vs best (%)
+## Recommended design — chosen plane(s), size (kW DC), production (kWh/yr)
+                     from the explicit estimate_production run
+## Economics       — table: gross cost | federal ITC | net cost | payback |
+                     25-yr NPV, at the company's real cost basis
+## Incentive appendix — federal line + state/local programs as "potential
+                     additional savings" (not netted above)
+## What happens after you sign — jurisdiction name; median permit /
+                     inspection / PTO days, framed as "typical", with the
+                     ~65% coverage caveat
+## Assumptions appendix — the envelope's assumptions, verbatim
+```
+
+The production headline must come from the explicit `estimate_production`
+run (step 3), never from the ROI's internal default-orientation model.

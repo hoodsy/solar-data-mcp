@@ -30,7 +30,7 @@ from solar_mcp_market import server as market_server
 from solar_mcp_nrel import resources as nrel_resources
 from solar_mcp_nrel import server as nrel_server
 
-from solar_data_mcp import skills
+from solar_data_mcp import prompts, skills
 
 INSTRUCTIONS = (
     "All US open solar data in one server: NREL production modeling "
@@ -117,6 +117,7 @@ def create_server(context_factory: Callable[[], CompositeContext] | None = None)
     for resources in (nrel_resources, economics_resources, market_resources, forecast_resources):
         resources.register(mcp)
     skills.register(mcp)
+    prompts.register(mcp)
     return mcp
 
 

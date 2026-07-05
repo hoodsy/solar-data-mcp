@@ -54,6 +54,12 @@ against it, load the referenced `skill://solar/<name>`), and the server instruct
 point agents there automatically. Catalog and design rationale:
 [`docs/skills.md`](https://github.com/hoodsy/solar-data-mcp/blob/main/docs/skills.md).
 
+Four of the skills produce **reports** with a fixed document shape, and each is also
+exposed as an MCP prompt your host surfaces natively — `market_brief(state)`,
+`site_assessment(location, usage)`, `quote_review(quote_details)`, and
+`proposal_builder(customer_details)` — e.g. `/mcp__solar-data__market_brief` in
+Claude Code.
+
 ## Forecast model note
 
 `forecast_generation` uses the open Quartz model, whose package pins an old

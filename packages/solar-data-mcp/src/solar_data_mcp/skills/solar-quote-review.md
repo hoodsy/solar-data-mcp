@@ -46,3 +46,24 @@ and module/equipment tier if stated.
 Present a per-claim table: quoted value, modeled/market value, verdict.
 Surface every assumption behind your side of the comparison, per
 solar-data-conventions.
+
+## Report template
+
+When the user wants the review as a document, render exactly this shape:
+
+```
+# Quote review: <system size> at <location>
+<date> · quote from <installer, if named>
+
+## Verdict table   — claim | quoted | modeled/market | verdict
+                     (price $/W, production kWh/yr, payback yrs, incentives)
+## Evidence        — one short subsection per claim: how the check was run,
+                     which assumptions were mirrored from the quote, source +
+                     vintage of the market anchor
+## Questions for your installer — one per flagged claim, phrased neutrally
+## Assumptions & caveats — verbatim envelope assumptions/warnings; note if
+                     the price anchor was the national constant (no TTS sync)
+```
+
+Verdicts are one of: "in line", "worth a question", "outlier". Never render
+an accusation; the document's job is to arm a conversation.

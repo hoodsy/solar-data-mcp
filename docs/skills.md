@@ -50,6 +50,23 @@ in order of preference:
    loaded alongside everything (envelope literacy), and any "snapshot not synced"
    error reroutes to `solar-data-sync`.
 
+### Reports & prompts
+
+The four deliverable-shaped skills (`site-assessment`, `quote-review`, `market-brief`,
+`proposal-builder`) each carry a `## Report template` — a deterministic document shape
+(section order, tables, where assumptions and vintages print) so every user asking the
+same question gets the same report with their data in it. `solar-data-conventions`
+adds an export convention for CSV-shaped output (unit-annotated headers from the
+envelope's `units` map, provenance comment row).
+
+The server also exposes four **MCP prompts** (`market_brief(state)`,
+`site_assessment(location, annual_usage_or_bill)`, `quote_review(quote_details)`,
+`proposal_builder(customer_details)`) — the user-facing entry: hosts surface them
+natively (Claude Code: `/mcp__solar-data__market_brief`), and each expands to "load
+the skill, run its workflow for these inputs, render its report template." Same skill
+underneath; nothing duplicated. Tools stay presentation-free — the envelope is the
+only tool output, and rendering is always the host's job.
+
 ## Personas
 
 Three distinct users show up in the cookbook prompts, and they want different
