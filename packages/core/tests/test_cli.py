@@ -40,7 +40,7 @@ def test_doctor_fails_without_key(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))
     monkeypatch.delenv("NREL_API_KEY", raising=False)
 
     exit_code = doctor(factory_for(ScriptedTransport([]), tmp_path))
@@ -55,7 +55,7 @@ def test_doctor_passes_with_valid_key(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("NREL_API_KEY", "GOODKEY")
     transport = ScriptedTransport(
         [httpx.Response(200, json={"outputs": {}}, headers={"X-RateLimit-Remaining": "997"})]
@@ -74,7 +74,7 @@ def test_doctor_reports_invalid_key(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("NREL_API_KEY", "BADKEY")
     transport = ScriptedTransport([httpx.Response(403)])
 
@@ -90,7 +90,7 @@ def test_doctor_reports_quota(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("NREL_API_KEY", "GOODKEY")
     transport = ScriptedTransport([httpx.Response(429, headers={"X-RateLimit-Remaining": "0"})])
 
@@ -111,7 +111,7 @@ def test_doctor_pings_live_on_every_run(
     tmp_path: Path,
 ) -> None:
     """Doctor must never answer 'live ping OK' from a cache left by a prior run."""
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("NREL_API_KEY", "GOODKEY")
     transport = ScriptedTransport(
         [
@@ -151,7 +151,7 @@ def test_doctor_skips_unpingable_and_optional_sources(
         }
     )
     monkeypatch.setattr(cli, "SOURCES", {"dsire": DSIRE, "opt": optional}, raising=True)
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))
     monkeypatch.delenv("OPT_TOKEN", raising=False)
 
     exit_code = doctor(factory_for(ScriptedTransport([]), tmp_path))

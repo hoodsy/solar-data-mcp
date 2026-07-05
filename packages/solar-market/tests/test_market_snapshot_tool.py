@@ -40,7 +40,7 @@ async def test_snapshot_partial_sections_with_warnings(
 async def test_snapshot_fails_only_when_everything_is_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))
     client = build_client(USPVDB, lambda request: httpx.Response(500), tmp_path)
 
     with pytest.raises(SourceUnavailable, match="no market data available"):

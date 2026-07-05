@@ -1,7 +1,9 @@
 # Agent cookbook
 
-Prompts that show what the suite can do once the servers are configured
-(see `examples/claude_desktop_config.json`).
+Prompts that show what the suite can do once the server is configured — one
+`solar-data` entry covers everything (see `examples/claude_desktop_config.json`).
+For the planned skill layer that
+teaches agents these workflows end to end, see [`skills.md`](skills.md).
 
 ## Production & siting (nrel-solar)
 1. "Compare annual production for an 8 kW system in Mesa, AZ at 10° vs 25° tilt."

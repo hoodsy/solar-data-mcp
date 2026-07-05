@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "nrel-solar": {
+      "command": "uvx",
+      "args": ["--from", "solar-data-mcp-nrel", "nrel-solar-mcp"],
+      "env": { "NREL_API_KEY": "YOUR_KEY_HERE" }
+    },
+    "solar-economics": {
+      "command": "uvx",
+      "args": ["--from", "solar-data-mcp-economics", "solar-economics-mcp"],
+      "env": {
+        "NREL_API_KEY": "YOUR_KEY_HERE",
+        "OPENEI_API_KEY": "YOUR_KEY_HERE",
+        "EIA_API_KEY": "YOUR_KEY_HERE"
+      }
+    },
+    "solar-market": {
+      "command": "uvx",
+      "args": ["--from", "solar-data-mcp-market", "solar-market-mcp"]
+    },
+    "solar-forecast": {
+      "command": "uvx",
+      "args": ["--from", "solar-data-mcp-forecast", "solar-forecast-mcp"],
+      "env": { "NREL_API_KEY": "YOUR_KEY_HERE" }
+    }
+  }
+}

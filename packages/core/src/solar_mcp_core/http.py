@@ -33,7 +33,7 @@ logger = logging.getLogger("solar_mcp.http")
 
 
 def configure_debug_logging() -> None:
-    """Install the stderr debug handler when SOLAR_MCP_DEBUG=1.
+    """Install the stderr debug handler when SOLAR_DATA_MCP_DEBUG=1.
 
     Called from process entry points (server main, CLI) rather than library
     constructors, so importing or instantiating a client has no logging side

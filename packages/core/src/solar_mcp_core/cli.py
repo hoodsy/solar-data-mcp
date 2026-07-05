@@ -1,4 +1,5 @@
-"""`solar-mcp` CLI. `doctor` checks keys and pings each registered source.
+"""The `doctor` command: checks keys and pings each registered source. Users
+reach it as `solar-data-mcp doctor` — the umbrella console script delegates here.
 
 This is the one component that intentionally makes live API calls — it exists
 so users can verify their setup before pointing an agent at a server.
@@ -97,7 +98,7 @@ def _cache_writable() -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     configure_debug_logging()
-    parser = argparse.ArgumentParser(prog="solar-mcp", description="solar-data-mcp utilities")
+    parser = argparse.ArgumentParser(prog="solar-data-mcp", description="solar-data-mcp utilities")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("doctor", help="check API keys and ping each data source")
     args = parser.parse_args(argv)

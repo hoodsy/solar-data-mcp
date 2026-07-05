@@ -25,13 +25,13 @@ def test_cache_dir_env_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
 
 def test_cache_dir_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(CACHE_DIR_ENV, raising=False)
-    assert cache_dir() == Path.home() / ".cache" / "solar-mcp"
+    assert cache_dir() == Path.home() / ".cache" / "solar-data-mcp"
 
 
 def test_debug_flag(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SOLAR_MCP_DEBUG", raising=False)
+    monkeypatch.delenv("SOLAR_DATA_MCP_DEBUG", raising=False)
     assert not debug_enabled()
-    monkeypatch.setenv("SOLAR_MCP_DEBUG", "1")
+    monkeypatch.setenv("SOLAR_DATA_MCP_DEBUG", "1")
     assert debug_enabled()
 
 

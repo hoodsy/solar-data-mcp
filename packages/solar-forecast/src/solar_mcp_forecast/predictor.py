@@ -19,7 +19,7 @@ INSTALL_HINT = (
     "with the MCP SDK) so it is not auto-installed; add it alongside with: "
     "pip install --no-deps quartz-solar-forecast && pip install "
     "pv-site-prediction xarray xgboost openmeteo-requests requests-cache "
-    "retry-requests  (see the solar-mcp-forecast README)"
+    "retry-requests  (see the solar-data-mcp-forecast README)"
 )
 
 

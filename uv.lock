@@ -11,11 +11,12 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "solar-mcp-core",
-    "solar-mcp-economics",
-    "solar-mcp-forecast",
-    "solar-mcp-market",
-    "solar-mcp-nrel",
+    "solar-data-mcp",
+    "solar-data-mcp-core",
+    "solar-data-mcp-economics",
+    "solar-data-mcp-forecast",
+    "solar-data-mcp-market",
+    "solar-data-mcp-nrel",
 ]
 
 [manifest.dependency-groups]
@@ -1055,7 +1056,36 @@ wheels = [
 ]
 
 [[package]]
-name = "solar-mcp-core"
+name = "solar-data-mcp"
+version = "0.1.0"
+source = { editable = "packages/solar-data-mcp" }
+dependencies = [
+    { name = "duckdb" },
+    { name = "httpx" },
+    { name = "mcp" },
+    { name = "pydantic" },
+    { name = "solar-data-mcp-core" },
+    { name = "solar-data-mcp-economics" },
+    { name = "solar-data-mcp-forecast" },
+    { name = "solar-data-mcp-market" },
+    { name = "solar-data-mcp-nrel" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "duckdb", specifier = ">=1.1" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "mcp", specifier = ">=1.26,<2" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "solar-data-mcp-core", editable = "packages/core" },
+    { name = "solar-data-mcp-economics", editable = "packages/solar-economics" },
+    { name = "solar-data-mcp-forecast", editable = "packages/solar-forecast" },
+    { name = "solar-data-mcp-market", editable = "packages/solar-market" },
+    { name = "solar-data-mcp-nrel", editable = "packages/nrel-solar" },
+]
+
+[[package]]
+name = "solar-data-mcp-core"
 version = "0.1.0"
 source = { editable = "packages/core" }
 dependencies = [
@@ -1070,7 +1100,7 @@ requires-dist = [
 ]
 
 [[package]]
-name = "solar-mcp-economics"
+name = "solar-data-mcp-economics"
 version = "0.1.0"
 source = { editable = "packages/solar-economics" }
 dependencies = [
@@ -1078,8 +1108,8 @@ dependencies = [
     { name = "httpx" },
     { name = "mcp" },
     { name = "pydantic" },
-    { name = "solar-mcp-core" },
-    { name = "solar-mcp-nrel" },
+    { name = "solar-data-mcp-core" },
+    { name = "solar-data-mcp-nrel" },
 ]
 
 [package.metadata]
@@ -1088,20 +1118,20 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "pydantic", specifier = ">=2.7" },
-    { name = "solar-mcp-core", editable = "packages/core" },
-    { name = "solar-mcp-nrel", editable = "packages/nrel-solar" },
+    { name = "solar-data-mcp-core", editable = "packages/core" },
+    { name = "solar-data-mcp-nrel", editable = "packages/nrel-solar" },
 ]
 
 [[package]]
-name = "solar-mcp-forecast"
+name = "solar-data-mcp-forecast"
 version = "0.1.0"
 source = { editable = "packages/solar-forecast" }
 dependencies = [
     { name = "httpx" },
     { name = "mcp" },
     { name = "pydantic" },
-    { name = "solar-mcp-core" },
-    { name = "solar-mcp-nrel" },
+    { name = "solar-data-mcp-core" },
+    { name = "solar-data-mcp-nrel" },
 ]
 
 [package.metadata]
@@ -1109,12 +1139,12 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "pydantic", specifier = ">=2.7" },
-    { name = "solar-mcp-core", editable = "packages/core" },
-    { name = "solar-mcp-nrel", editable = "packages/nrel-solar" },
+    { name = "solar-data-mcp-core", editable = "packages/core" },
+    { name = "solar-data-mcp-nrel", editable = "packages/nrel-solar" },
 ]
 
 [[package]]
-name = "solar-mcp-market"
+name = "solar-data-mcp-market"
 version = "0.1.0"
 source = { editable = "packages/solar-market" }
 dependencies = [
@@ -1122,7 +1152,7 @@ dependencies = [
     { name = "httpx" },
     { name = "mcp" },
     { name = "pydantic" },
-    { name = "solar-mcp-core" },
+    { name = "solar-data-mcp-core" },
 ]
 
 [package.metadata]
@@ -1131,18 +1161,18 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "pydantic", specifier = ">=2.7" },
-    { name = "solar-mcp-core", editable = "packages/core" },
+    { name = "solar-data-mcp-core", editable = "packages/core" },
 ]
 
 [[package]]
-name = "solar-mcp-nrel"
+name = "solar-data-mcp-nrel"
 version = "0.1.0"
 source = { editable = "packages/nrel-solar" }
 dependencies = [
     { name = "httpx" },
     { name = "mcp" },
     { name = "pydantic" },
-    { name = "solar-mcp-core" },
+    { name = "solar-data-mcp-core" },
 ]
 
 [package.metadata]
@@ -1150,7 +1180,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "pydantic", specifier = ">=2.7" },
-    { name = "solar-mcp-core", editable = "packages/core" },
+    { name = "solar-data-mcp-core", editable = "packages/core" },
 ]
 
 [[package]]

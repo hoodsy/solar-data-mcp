@@ -8,6 +8,7 @@ writers (local DuckDB only) — everything else is read-only.
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Protocol, TypeVar
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
@@ -44,35 +45,26 @@ class AppContext:
         self.store.close()
 
 
-ToolContext = Context[ServerSession, AppContext]
+class MarketDeps(Protocol):
+    """Context fields the market tools read. Any hosting server's lifespan
+    context must provide these — this package's AppContext does, and so does
+    the solar-data-mcp umbrella's composite context."""
+
+    uspvdb: SolarHttpClient
+    ahj: SolarHttpClient
+    store: BulkStore
+
+
+DepsT = TypeVar("DepsT", bound=MarketDeps)
+
+ToolContext = Context[ServerSession, MarketDeps]
 
 
 def default_context() -> AppContext:
     return AppContext(uspvdb=SolarHttpClient(USPVDB), ahj=SolarHttpClient(AHJ), store=BulkStore())
 
 
-def create_server(context_factory: Callable[[], AppContext] | None = None) -> FastMCP:
-    factory = context_factory if context_factory is not None else default_context
-
-    @asynccontextmanager
-    async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
-        context = factory()
-        try:
-            yield context
-        finally:
-            await context.aclose()
-
-    mcp = FastMCP(
-        "solar-market",
-        instructions=(
-            "US solar market intelligence: permitting timelines (SolarTRACE), "
-            "installed-system stats (Tracking the Sun), utility-scale plants "
-            "(USPVDB), AHJ lookup. Bulk datasets are local snapshots loaded by the "
-            "sync_* tools; every result cites its snapshot vintage."
-        ),
-        lifespan=lifespan,
-    )
-
+def register_tools(mcp: FastMCP[DepsT]) -> None:
     @mcp.tool()
     async def sync_tracking_the_sun(
         ctx: ToolContext,
@@ -220,6 +212,29 @@ def create_server(context_factory: Callable[[], AppContext] | None = None) -> Fa
         context = ctx.request_context.lifespan_context
         return await _snapshot(context.uspvdb, context.store, state=state)
 
+
+def create_server(context_factory: Callable[[], AppContext] | None = None) -> FastMCP:
+    factory = context_factory if context_factory is not None else default_context
+
+    @asynccontextmanager
+    async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
+        context = factory()
+        try:
+            yield context
+        finally:
+            await context.aclose()
+
+    mcp: FastMCP[AppContext] = FastMCP(
+        "solar-market",
+        instructions=(
+            "US solar market intelligence: permitting timelines (SolarTRACE), "
+            "installed-system stats (Tracking the Sun), utility-scale plants "
+            "(USPVDB), AHJ lookup. Bulk datasets are local snapshots loaded by the "
+            "sync_* tools; every result cites its snapshot vintage."
+        ),
+        lifespan=lifespan,
+    )
+    register_tools(mcp)
     resources.register(mcp)
     return mcp
 

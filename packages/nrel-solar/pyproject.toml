@@ -1,5 +1,5 @@
 [project]
-name = "solar-mcp-nrel"
+name = "solar-data-mcp-nrel"
 version = "0.1.0"
 description = "MCP server for NREL solar APIs: PVWatts v8 production estimates and NSRDB solar resource data"
 readme = "README.md"
@@ -15,20 +15,20 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "solar-mcp-core>=0.1,<0.2",
+    "solar-data-mcp-core>=0.1,<0.2",
     "mcp>=1.26,<2",
     "httpx>=0.27",
     "pydantic>=2.7",
 ]
 
 [project.urls]
-Homepage = "https://github.com/hoodsy/solar-mcp"
+Homepage = "https://github.com/hoodsy/solar-data-mcp"
 
 [project.scripts]
 nrel-solar-mcp = "solar_mcp_nrel.server:main"
 
 [tool.uv.sources]
-solar-mcp-core = { workspace = true }
+solar-data-mcp-core = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

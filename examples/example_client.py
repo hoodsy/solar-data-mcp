@@ -1,7 +1,7 @@
-"""Minimal MCP client for the nrel-solar server — no Claude required.
+"""Minimal MCP client for the combined solar-data server — no Claude required.
 
-Launches the server as a stdio subprocess (exactly how Claude Desktop runs it),
-lists its tools, reads a provenance resource, then runs the 60-second demo:
+Launches the server as a stdio subprocess (exactly how MCP clients run it),
+lists all 18 tools, reads a provenance resource, then runs the 60-second demo:
 annual production for an 8 kW system in Mesa, AZ at 10 deg vs 25 deg tilt.
 
 Run from the repo root:
@@ -26,7 +26,7 @@ MESA_AZ: dict[str, Any] = {"lat": 33.42, "lon": -111.83}
 
 SERVER = StdioServerParameters(
     command=sys.executable,
-    args=["-m", "solar_mcp_nrel.server"],
+    args=["-m", "solar_data_mcp.server"],
     env={**os.environ, "NREL_API_KEY": os.environ.get("NREL_API_KEY") or "DEMO_KEY"},
 )
 
@@ -68,7 +68,7 @@ async def main() -> None:
         await session.initialize()
 
         tools = await session.list_tools()
-        print("Tools exposed by nrel-solar:")
+        print("Tools exposed by solar-data:")
         for tool in tools.tools:
             summary = (tool.description or "").strip().splitlines()[0]
             print(f"  {tool.name:<24} {summary}")

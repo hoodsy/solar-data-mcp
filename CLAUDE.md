@@ -9,10 +9,12 @@ solar-market, solar-forecast. Work one phase/package at a time; keep every gate 
 - Test (fixtures only, no live calls): `uv run pytest`
 - Record fixtures (needs keys in .env): `uv run pytest --record`
 - Lint/type: `uv run ruff check . && uv run mypy --strict`
-- Key check: `uv run solar-mcp doctor`
+- Key check: `uv run solar-data-mcp doctor`
 
 ## Architecture rules
 - uv workspace: `packages/core` (shared) + one package per server (`packages/nrel-solar`, ...)
+  + `packages/solar-data-mcp` (umbrella: all four servers' tools on one stdio entry; the
+  user-facing install — PyPI's `solar-mcp` name belongs to an unrelated project)
 - Every tool returns the `ToolResult` envelope from core: data + units + source + assumptions + warnings
 - NEVER silently default a parameter — every injected default goes in `assumptions`
 - All HTTP goes through core's client (retry, token-bucket rate limit, SQLite cache). NREL limit: 1,000 req/hr
@@ -36,4 +38,5 @@ solar-market, solar-forecast. Work one phase/package at a time; keep every gate 
 - [x] Phase 1–4 tools shipped with fixture tests and envelope completeness asserted
 - Gates for any new work: `uv run pytest` green (replay only), ruff + mypy --strict clean,
   coverage ≥85% (CI), fixtures scrubbed of keys, every injected default in `assumptions`
-- Release steps that remain manual: PyPI upload, MCP registry listings, demo GIF
+- Release steps that remain manual: PyPI upload (core + domain packages BEFORE
+  solar-data-mcp, or `uvx solar-data-mcp` cannot resolve), MCP registry listings, demo GIF

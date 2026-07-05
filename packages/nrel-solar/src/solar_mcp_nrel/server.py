@@ -13,6 +13,7 @@ explicitly-passed values are never reported as assumptions.
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Protocol, TypeVar
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
@@ -36,34 +37,24 @@ class AppContext:
         await self.client.aclose()
 
 
-ToolContext = Context[ServerSession, AppContext]
+class NrelDeps(Protocol):
+    """Context fields the nrel tools read. Any hosting server's lifespan
+    context must provide these — this package's AppContext does, and so does
+    the solar-data-mcp umbrella's composite context."""
+
+    client: SolarHttpClient
+
+
+DepsT = TypeVar("DepsT", bound=NrelDeps)
+
+ToolContext = Context[ServerSession, NrelDeps]
 
 
 def default_context() -> AppContext:
     return AppContext(client=SolarHttpClient(NREL))
 
 
-def create_server(context_factory: Callable[[], AppContext] | None = None) -> FastMCP:
-    factory = context_factory if context_factory is not None else default_context
-
-    @asynccontextmanager
-    async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
-        context = factory()
-        try:
-            yield context
-        finally:
-            await context.aclose()
-
-    mcp = FastMCP(
-        "nrel-solar",
-        instructions=(
-            "US solar data from NREL: PVWatts v8 production modeling and NSRDB "
-            "irradiance. Every tool returns data + units + source + assumptions "
-            "+ warnings; read the assumptions before quoting numbers."
-        ),
-        lifespan=lifespan,
-    )
-
+def register_tools(mcp: FastMCP[DepsT]) -> None:
     @mcp.tool()
     async def estimate_production(
         lat: float,
@@ -211,6 +202,28 @@ def create_server(context_factory: Callable[[], AppContext] | None = None) -> Fa
         )
         return await _size(ctx.request_context.lifespan_context.client, spec, target_annual_kwh)
 
+
+def create_server(context_factory: Callable[[], AppContext] | None = None) -> FastMCP:
+    factory = context_factory if context_factory is not None else default_context
+
+    @asynccontextmanager
+    async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
+        context = factory()
+        try:
+            yield context
+        finally:
+            await context.aclose()
+
+    mcp: FastMCP[AppContext] = FastMCP(
+        "nrel-solar",
+        instructions=(
+            "US solar data from NREL: PVWatts v8 production modeling and NSRDB "
+            "irradiance. Every tool returns data + units + source + assumptions "
+            "+ warnings; read the assumptions before quoting numbers."
+        ),
+        lifespan=lifespan,
+    )
+    register_tools(mcp)
     resources.register(mcp)
     return mcp
 

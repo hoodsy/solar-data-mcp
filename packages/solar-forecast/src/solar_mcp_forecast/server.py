@@ -9,6 +9,7 @@ NREL client for the PVWatts TMY baseline.
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Protocol, TypeVar
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
@@ -33,35 +34,30 @@ class AppContext:
         await self.nrel.aclose()
 
 
-ToolContext = Context[ServerSession, AppContext]
+class ForecastDeps(Protocol):
+    """Context fields the forecast tools read. Any hosting server's lifespan
+    context must provide these — this package's AppContext does, and so does
+    the solar-data-mcp umbrella's composite context."""
+
+    nrel: SolarHttpClient
+
+    # Read-only property, not a plain attribute: mypy treats Callable-typed
+    # dataclass fields as read-only, and a settable protocol member would
+    # reject every conforming AppContext.
+    @property
+    def predictor(self) -> Predictor: ...
+
+
+DepsT = TypeVar("DepsT", bound=ForecastDeps)
+
+ToolContext = Context[ServerSession, ForecastDeps]
 
 
 def default_context() -> AppContext:
     return AppContext(predictor=quartz_predictor, nrel=SolarHttpClient(NREL))
 
 
-def create_server(context_factory: Callable[[], AppContext] | None = None) -> FastMCP:
-    factory = context_factory if context_factory is not None else default_context
-
-    @asynccontextmanager
-    async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
-        context = factory()
-        try:
-            yield context
-        finally:
-            await context.aclose()
-
-    mcp = FastMCP(
-        "solar-forecast",
-        instructions=(
-            "Solar generation forecasts from the open Quartz model (Open Climate "
-            "Fix) — no API key. forecast_generation for the next <=48h; "
-            "compare_forecast_to_model for 'is today unusual?' against PVWatts "
-            "TMY. Screening-grade, not grid settlement."
-        ),
-        lifespan=lifespan,
-    )
-
+def register_tools(mcp: FastMCP[DepsT]) -> None:
     @mcp.tool()
     async def forecast_generation(
         ctx: ToolContext,
@@ -129,6 +125,29 @@ def create_server(context_factory: Callable[[], AppContext] | None = None) -> Fa
             horizon_hours=horizon_hours,
         )
 
+
+def create_server(context_factory: Callable[[], AppContext] | None = None) -> FastMCP:
+    factory = context_factory if context_factory is not None else default_context
+
+    @asynccontextmanager
+    async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
+        context = factory()
+        try:
+            yield context
+        finally:
+            await context.aclose()
+
+    mcp: FastMCP[AppContext] = FastMCP(
+        "solar-forecast",
+        instructions=(
+            "Solar generation forecasts from the open Quartz model (Open Climate "
+            "Fix) — no API key. forecast_generation for the next <=48h; "
+            "compare_forecast_to_model for 'is today unusual?' against PVWatts "
+            "TMY. Screening-grade, not grid settlement."
+        ),
+        lifespan=lifespan,
+    )
+    register_tools(mcp)
     resources.register(mcp)
     return mcp
 

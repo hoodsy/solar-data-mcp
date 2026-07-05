@@ -2,7 +2,7 @@
 
 Each data source gets one SourceConfig describing where it lives, how it
 authenticates, how hard we may hit it, and how long responses stay fresh.
-The registry lives in core so `solar-mcp doctor` can iterate every known
+The registry lives in core so `solar-data-mcp doctor` can iterate every known
 source without importing server packages.
 """
 
@@ -12,8 +12,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-CACHE_DIR_ENV = "SOLAR_MCP_CACHE_DIR"
-DEBUG_ENV = "SOLAR_MCP_DEBUG"
+CACHE_DIR_ENV = "SOLAR_DATA_MCP_CACHE_DIR"
+DEBUG_ENV = "SOLAR_DATA_MCP_DEBUG"
 
 AuthStyle = Literal["api_key_param", "token_header", "none"]
 
@@ -31,7 +31,7 @@ class SourceConfig(BaseModel):
     # Optional sources (e.g. email-issued tokens) SKIP rather than FAIL in doctor.
     required: bool = True
     signup_url: str | None = None
-    # Cheapest keyed endpoint, used by `solar-mcp doctor` as the liveness ping.
+    # Cheapest keyed endpoint, used by `solar-data-mcp doctor` as the liveness ping.
     ping_path: str | None = None
     ping_params: dict[str, str | int | float] = Field(default_factory=dict)
 
@@ -138,11 +138,11 @@ SOURCES: dict[str, SourceConfig] = {
 
 
 def cache_dir() -> Path:
-    """Cache directory: $SOLAR_MCP_CACHE_DIR or ~/.cache/solar-mcp."""
+    """Cache directory: $SOLAR_DATA_MCP_CACHE_DIR or ~/.cache/solar-data-mcp."""
     override = os.environ.get(CACHE_DIR_ENV)
     if override:
         return Path(override)
-    return Path.home() / ".cache" / "solar-mcp"
+    return Path.home() / ".cache" / "solar-data-mcp"
 
 
 def debug_enabled() -> bool:

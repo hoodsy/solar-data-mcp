@@ -29,11 +29,13 @@ mypy_path = [
     "packages/solar-economics/src",
     "packages/solar-market/src",
     "packages/solar-forecast/src",
+    "packages/solar-data-mcp/src",
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
     "packages/solar-market/tests",
     "packages/solar-forecast/tests",
+    "packages/solar-data-mcp/tests",
 ]
 files = [
     "packages/core/src",
@@ -41,11 +43,13 @@ files = [
     "packages/solar-economics/src",
     "packages/solar-market/src",
     "packages/solar-forecast/src",
+    "packages/solar-data-mcp/src",
     "packages/core/tests",
     "packages/nrel-solar/tests",
     "packages/solar-economics/tests",
     "packages/solar-market/tests",
     "packages/solar-forecast/tests",
+    "packages/solar-data-mcp/tests",
     "conftest.py",
     "examples",
 ]
@@ -62,6 +66,7 @@ testpaths = [
     "packages/solar-economics/tests",
     "packages/solar-market/tests",
     "packages/solar-forecast/tests",
+    "packages/solar-data-mcp/tests",
 ]
 
 # Coverage is a CI gate (pytest --cov=<each package>, see ci.yml), not welded

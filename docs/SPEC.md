@@ -60,23 +60,23 @@ solar-data-mcp/
 
 - **Tooling:** Python 3.11+, `uv` workspaces, `ruff`, `mypy --strict`, `pytest`
 - **MCP framework:** official Python MCP SDK (`FastMCP`) — stdio transport primary
-- Each package is independently pip-installable (`solar-mcp-nrel`, etc.) and exposes a
+- Each package is independently pip-installable (`solar-data-mcp-nrel`, etc.) and exposes a
   console script (`nrel-solar-mcp`) so Claude Desktop config is one line
 
 ## solar_mcp_core (shared library)
 
 ### HTTP client
 - `httpx.AsyncClient` wrapper with: retry w/ exponential backoff (respect `Retry-After`),
-  per-source rate limiter (token bucket), request/response logging behind `SOLAR_MCP_DEBUG=1`
+  per-source rate limiter (token bucket), request/response logging behind `SOLAR_DATA_MCP_DEBUG=1`
 - NREL developer API allows 1,000 req/hr per key — limiter defaults per source in a
   `SourceConfig` registry
 
 ### Cache
 Two tiers:
-1. **HTTP cache** — SQLite (`~/.cache/solar-mcp/http.db`), keyed on canonicalized
+1. **HTTP cache** — SQLite (`~/.cache/solar-data-mcp/http.db`), keyed on canonicalized
    URL+params, TTL per source (PVWatts: 30d — TMY results are static for a lat/lon;
    tariffs: 7d; forecasts: none)
-2. **Bulk data store** — DuckDB (`~/.cache/solar-mcp/bulk.duckdb`) for Phase 3 datasets,
+2. **Bulk data store** — DuckDB (`~/.cache/solar-data-mcp/bulk.duckdb`) for Phase 3 datasets,
    populated by explicit `sync_*` tools
 
 Rationale: caching is a correctness feature (rate limits) and a UX feature (agents retry a lot).
@@ -100,8 +100,19 @@ class ToolResult(BaseModel):
 ### Config & secrets
 - Env vars only: `NREL_API_KEY`, `EIA_API_KEY`, `OPENEI_API_KEY`, `AHJ_REGISTRY_TOKEN`,
   `GOOGLE_MAPS_API_KEY` (optional adapter)
-- `solar-mcp doctor` CLI: checks which keys are present, pings each source, prints setup
-  links for missing ones
+- `solar-data-mcp doctor` CLI: checks which keys are present, pings each source, prints
+  setup links for missing ones
+
+### Distribution
+- One-install umbrella: the `solar-data-mcp` package (console script of the same name)
+  mounts all four servers' tools on a single stdio FastMCP — one shared NREL token
+  bucket and one bulk-store handle. Bare invocation serves; `doctor` is a subcommand.
+  A startup stderr note lists missing keys; tools are never hidden by key state.
+- Per-domain packages stay installable standalone (`uvx --from solar-data-mcp-nrel
+  nrel-solar-mcp`), but economics and market must not run as separate concurrent
+  processes: both open the same DuckDB bulk store, which is single-process.
+- PyPI name `solar-mcp` is owned by an unrelated space-weather project — never
+  reference it as this suite's install.
 
 ### Error taxonomy
 - `SourceUnavailable` (5xx/timeouts) → tool returns partial result + warning, never crashes
@@ -181,7 +192,7 @@ Inverse solve: target annual kWh → required kW (search over cached PVWatts cal
 
 - [x] 4 tools above, typed envelope, assumptions populated
 - [x] Fixture tests: 100% of tools, zero live calls in CI
-- [x] `solar-mcp doctor` validates NREL key
+- [x] `solar-data-mcp doctor` validates NREL key
 - [x] README quickstart ≤ 5 minutes to first result
 - [ ] Published to PyPI + submitted to MCP registries (manual release step)
 
@@ -214,7 +225,8 @@ Inverse solve: target annual kWh → required kW (search over cached PVWatts cal
 ## Release checklist (every version)
 
 - [ ] Fixtures re-recorded within 30 days
-- [ ] `solar-mcp doctor` passes against live sources
+- [ ] `solar-data-mcp doctor` passes against live sources
+- [ ] Publish order: core + domain packages before `solar-data-mcp` (uvx resolution)
 - [ ] Demo prompt transcript updated in README
 - [ ] MCP registry listings updated
 

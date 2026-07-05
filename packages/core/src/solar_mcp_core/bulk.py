@@ -4,7 +4,8 @@ for the HTTP cache (DSIRE snapshots, Tracking the Sun, SolarTRACE).
 Populated only by explicit `sync_*` tools — never implicitly — and every
 dataset records its vintage so query results can cite how fresh the data is.
 The `duckdb` dependency is declared by the packages that use this module
-(solar-mcp-economics, solar-mcp-market), keeping solar-mcp-core lightweight.
+(solar-data-mcp-economics, solar-data-mcp-market), keeping solar-data-mcp-core
+lightweight.
 """
 
 import os
@@ -58,8 +59,8 @@ class BulkStore:
         except ImportError as exc:  # pragma: no cover — dev/CI envs always have it
             raise RuntimeError(
                 "BulkStore needs the 'duckdb' package. It is installed automatically "
-                "with solar-mcp-economics and solar-mcp-market; for standalone use: "
-                "pip install duckdb"
+                "with solar-data-mcp-economics and solar-data-mcp-market; for "
+                "standalone use: pip install duckdb"
             ) from exc
         db = path if path is not None else cache_dir() / "bulk.duckdb"
         if isinstance(db, Path):

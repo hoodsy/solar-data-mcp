@@ -1,5 +1,5 @@
 [project]
-name = "solar-mcp-economics"
+name = "solar-data-mcp-economics"
 version = "0.1.0"
 description = "MCP server for solar economics: retail tariffs (OpenEI URDB), electricity prices (EIA), incentives (DSIRE), and auditable ROI estimates"
 readme = "README.md"
@@ -15,8 +15,8 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "solar-mcp-core>=0.1,<0.2",
-    "solar-mcp-nrel>=0.1,<0.2",
+    "solar-data-mcp-core>=0.1,<0.2",
+    "solar-data-mcp-nrel>=0.1,<0.2",
     "mcp>=1.26,<2",
     "httpx>=0.27",
     "pydantic>=2.7",
@@ -24,14 +24,14 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hoodsy/solar-mcp"
+Homepage = "https://github.com/hoodsy/solar-data-mcp"
 
 [project.scripts]
 solar-economics-mcp = "solar_mcp_economics.server:main"
 
 [tool.uv.sources]
-solar-mcp-core = { workspace = true }
-solar-mcp-nrel = { workspace = true }
+solar-data-mcp-core = { workspace = true }
+solar-data-mcp-nrel = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

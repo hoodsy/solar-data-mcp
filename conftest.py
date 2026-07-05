@@ -306,7 +306,7 @@ def client_for(
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
 ) -> Callable[[SourceConfig], SolarHttpClient]:
-    monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))  # hermetic cache per test
+    monkeypatch.setenv("SOLAR_DATA_MCP_CACHE_DIR", str(tmp_path))  # hermetic cache per test
     if not request.config.getoption("--record"):
         for config in SOURCES.values():  # key-presence code paths still run in replay
             if config.api_key_env is not None:

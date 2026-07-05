@@ -1,5 +1,5 @@
 [project]
-name = "solar-mcp-core"
+name = "solar-data-mcp-core"
 version = "0.1.0"
 description = "Shared infrastructure for solar-data-mcp servers: HTTP client, cache, rate limiting, result envelope"
 readme = "README.md"
@@ -20,10 +20,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hoodsy/solar-mcp"
+Homepage = "https://github.com/hoodsy/solar-data-mcp"
 
-[project.scripts]
-solar-mcp = "solar_mcp_core.cli:main"
+# No console script: the user-facing command (server + doctor passthrough) is
+# `solar-data-mcp`, owned by the umbrella package. PyPI's `solar-mcp` name
+# belongs to an unrelated project, so nothing here may claim that command.
 
 [build-system]
 requires = ["hatchling"]
