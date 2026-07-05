@@ -29,11 +29,15 @@ jobs:
         run: |
           mkdir -p dist-umbrella
           mv dist/solar_data_mcp-[0-9]*.whl dist/solar_data_mcp-[0-9]*.tar.gz dist-umbrella/
+      # skip-existing makes re-running a partially failed release safe:
+      # packages that already landed on PyPI are skipped, not errors.
       - name: Publish core + domain packages
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          skip-existing: true
       - name: Publish the umbrella package
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist-umbrella/
+          skip-existing: true

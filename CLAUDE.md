@@ -39,7 +39,7 @@ keep every gate green.
 - Gates for any new work: `uv run pytest` green (replay only), ruff + mypy --strict clean,
   coverage ≥85% (CI), fixtures scrubbed of keys, every injected default in `assumptions`
 - Release: push a `v*` tag → `.github/workflows/release.yml` publishes all six packages to
-  PyPI via Trusted Publishing (OIDC, deps before the umbrella). One-time: register the six
-  names as trusted publishers on PyPI. Still manual: MCP registry listings, demo GIF
+  PyPI via Trusted Publishing (OIDC, deps before the umbrella). Full runbook, including
+  one-time PyPI/GitHub setup and post-release manual steps: docs/RELEASING.md
 - Security: vuln disclosure via SECURITY.md; sync_* downloads are restricted to each
   dataset's official host; secrets are scrubbed from the cache/logs/envelopes
