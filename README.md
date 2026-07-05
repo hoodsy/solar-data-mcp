@@ -1,14 +1,22 @@
-# solar-data-mcp
+<div align="center">
+
+# ☀️ solar-mcp
 
 **US solar data, agent-accessible.**
 
+[![CI](https://github.com/hoodsy/solar-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/hoodsy/solar-mcp/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://github.com/hoodsy/solar-mcp/blob/main/pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-compatible-8A2BE2)](https://modelcontextprotocol.io)
+
 Open-source [MCP](https://modelcontextprotocol.io) servers that make US open solar data
-available to AI agents — Claude Desktop, Claude Code, or anything that speaks MCP. One
-`pip install`, one free API key per source.
+available to AI agents — Claude Desktop, Claude Code, or anything that speaks MCP.
+
+</div>
 
 Every tool returns the same envelope — `data` + `units` + `source` + `assumptions` +
 `warnings` — so an agent always knows what a number means, where it came from, and which
-defaults were injected on its behalf. Nothing is ever silently defaulted.
+defaults were injected on its behalf. One `pip install`, one free API key per source.
 
 | Server | Data | Tools |
 |---|---|---|
@@ -17,10 +25,10 @@ defaults were injected on its behalf. Nothing is ever silently defaulted.
 | `solar-mcp-market` | Permitting timelines (SolarTRACE), installed systems (Tracking the Sun), utility-scale plants (USPVDB), AHJ lookup | sync_* loaders, query_installed_systems, get_permitting_timelines, find_utility_scale_projects, identify_ahj, market_snapshot |
 | `solar-mcp-forecast` | Quartz open-source generation forecasts (OCF) | forecast_generation, compare_forecast_to_model |
 
-Console scripts: `nrel-solar-mcp`, `solar-economics-mcp`, `solar-market-mcp`,
-`solar-forecast-mcp` — each is one line of Claude Desktop config. API keys:
-NREL for production/irradiance, OpenEI + EIA for economics (all free); USPVDB
-and the forecast model need none.
+- **Run:** each server is one console script — `nrel-solar-mcp`, `solar-economics-mcp`,
+  `solar-market-mcp`, `solar-forecast-mcp` — and one line of Claude Desktop config.
+- **Keys:** NREL for production/irradiance, OpenEI + EIA for economics (all free);
+  USPVDB and the forecast model need none.
 
 ## Quickstart (≈5 minutes)
 
@@ -56,12 +64,11 @@ launches the server the same way Claude Desktop does, lists its tools, and runs 
 AZ tilt comparison:
 
 ```console
-$ git clone https://github.com/hoodsy/solar-mcp && cd solar-data-mcp
+$ git clone https://github.com/hoodsy/solar-mcp && cd solar-mcp
 $ uv sync
 $ NREL_API_KEY=DEMO_KEY uv run python examples/example_client.py
 Tools exposed by nrel-solar:
   estimate_production      Estimate annual and monthly AC production for a PV system...
-  ...
 === compare_orientations ===
   best                   {'tilt': 25.0, 'azimuth': 180.0}
   ...
@@ -76,14 +83,9 @@ $ uvx --from solar-mcp-core solar-mcp doctor
 cache dir: ~/.cache/solar-mcp (writable)
 [nrel] key present (NREL_API_KEY)
 [nrel] PASS — live ping OK, 998 requests remaining this hour
-[openei] key present (OPENEI_API_KEY)
-[openei] PASS — live ping OK
 [eia] FAIL — EIA_API_KEY not set. Setup: https://www.eia.gov/opendata/register.php
-[dsire] no key required
-[dsire] SKIP — no liveness ping defined for this source
 [uspvdb] no key required
 [uspvdb] PASS — live ping OK
-[ahj] SKIP — optional source; set AHJ_REGISTRY_TOKEN to enable
 ...
 ```
 
@@ -114,7 +116,7 @@ The server also exposes MCP resources `source://nrel/license` and
 ## Development
 
 ```console
-$ git clone https://github.com/hoodsy/solar-mcp && cd solar-data-mcp
+$ git clone https://github.com/hoodsy/solar-mcp && cd solar-mcp
 $ uv sync                  # install the workspace
 $ uv run pytest            # fixture replay only, no network
 $ uv run ruff check . && uv run mypy
