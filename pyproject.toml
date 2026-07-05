@@ -64,8 +64,8 @@ testpaths = [
     "packages/solar-forecast/tests",
 ]
 
-# Coverage is a CI gate (`pytest --cov=solar_mcp_core --cov=solar_mcp_nrel`),
-# not welded onto every local run — `pytest -k one_test` stays usable.
+# Coverage is a CI gate (pytest --cov=<each package>, see ci.yml), not welded
+# onto every local run — `pytest -k one_test` stays usable.
 [tool.coverage.report]
 fail_under = 85
 show_missing = true

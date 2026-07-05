@@ -4,17 +4,15 @@ from pathlib import Path
 
 import httpx
 import pytest
-from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import NREL
 from solar_mcp_core.http import SolarHttpClient
-from solar_mcp_core.ratelimit import TokenBucket
-from solar_mcp_forecast.predictor import ForecastPoint, ForecastRequest
+from solar_mcp_forecast.predictor import ForecastPoint, ForecastRequest, Predictor
 from solar_mcp_forecast.tools.compare_forecast_to_model import compare_forecast_to_model
 
-from conftest import FakeTime, RoutedTransport, assert_envelope
+from conftest import assert_envelope, build_client
 
 
-def flat_predictor(power_kw: float):  # type: ignore[no-untyped-def]
+def flat_predictor(power_kw: float) -> Predictor:
     def predict(request: ForecastRequest) -> list[ForecastPoint]:
         return [
             ForecastPoint(time=f"2026-07-05T{hour:02d}:00:00Z", power_kw=power_kw)
@@ -42,14 +40,7 @@ def nrel_client_with_flat_months(
             "capacity_factor": 16.4,
         },
     }
-    fake = FakeTime()
-    return SolarHttpClient(
-        NREL,
-        transport=RoutedTransport(lambda request: httpx.Response(200, json=body)),
-        cache=HttpCache(path=tmp_path / "c.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    return build_client(NREL, lambda request: httpx.Response(200, json=body), tmp_path)
 
 
 @pytest.mark.anyio

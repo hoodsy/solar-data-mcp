@@ -1,11 +1,15 @@
 """forecast_generation: next-hours generation forecast from the open Quartz model."""
 
 import asyncio
-from datetime import UTC, datetime
 
 from solar_mcp_core import units
-from solar_mcp_core.envelope import SourceRef, ToolResult
-from solar_mcp_core.errors import BadInput
+from solar_mcp_core.envelope import SourceRef, ToolResult, utc_now_iso
+from solar_mcp_core.errors import BadInput, SolarMCPError, SourceUnavailable
+from solar_mcp_core.validation import (
+    default_tilt_azimuth,
+    validate_capacity_kw,
+    validate_lat_lon,
+)
 
 from solar_mcp_forecast.predictor import (
     QUARTZ_LICENSE,
@@ -29,25 +33,13 @@ def resolve_forecast_request(
     tilt_deg: float | None,
     azimuth_deg: float | None,
     horizon_hours: int | None,
-) -> tuple[ForecastRequest, list[str]]:
+) -> tuple[ForecastRequest, list[str], list[str]]:
     """Validate and default-fill, recording every injected default. Pure."""
-    assumptions: list[str] = []
-    if not -90 <= lat <= 90:
-        raise BadInput(field="lat", value=lat, allowed="-90 to 90")
-    if not -180 <= lon <= 180:
-        raise BadInput(field="lon", value=lon, allowed="-180 to 180")
-    if not 0.05 <= capacity_kw <= 500_000:
-        raise BadInput(field="capacity_kw", value=capacity_kw, allowed="0.05 to 500000 kW")
-    if tilt_deg is None:
-        tilt_deg = min(abs(lat), 90.0)
-        assumptions.append(
-            f"tilt_deg not provided; defaulted to site latitude ({tilt_deg:.1f} deg)"
-        )
+    validate_lat_lon(lat, lon)
+    validate_capacity_kw(capacity_kw)
+    tilt_deg, azimuth_deg, assumptions, warnings = default_tilt_azimuth(lat, tilt_deg, azimuth_deg)
     if not 0 <= tilt_deg <= 90:
         raise BadInput(field="tilt_deg", value=tilt_deg, allowed="0 to 90")
-    if azimuth_deg is None:
-        azimuth_deg = 180.0
-        assumptions.append("azimuth_deg not provided; defaulted to 180 (south-facing)")
     if not 0 <= azimuth_deg < 360:
         raise BadInput(field="azimuth_deg", value=azimuth_deg, allowed="0 to <360")
     if horizon_hours is None:
@@ -65,7 +57,7 @@ def resolve_forecast_request(
         azimuth_deg=azimuth_deg,
         horizon_hours=horizon_hours,
     )
-    return request, assumptions
+    return request, assumptions, warnings
 
 
 async def forecast_generation(
@@ -78,7 +70,7 @@ async def forecast_generation(
     azimuth_deg: float | None = None,
     horizon_hours: int | None = None,
 ) -> ToolResult:
-    request, assumptions = resolve_forecast_request(
+    request, assumptions, site_warnings = resolve_forecast_request(
         lat=lat,
         lon=lon,
         capacity_kw=capacity_kw,
@@ -86,7 +78,19 @@ async def forecast_generation(
         azimuth_deg=azimuth_deg,
         horizon_hours=horizon_hours,
     )
-    points = await asyncio.to_thread(predictor, request)  # model inference is CPU-bound
+    try:
+        points = await asyncio.to_thread(predictor, request)  # model inference is CPU-bound
+    except SolarMCPError:
+        raise
+    except Exception as exc:  # NWP download / schema errors from the model stack
+        raise SourceUnavailable("quartz", f"{type(exc).__name__}: {exc}") from exc
+
+    warnings = [*site_warnings, OPEN_MODEL_CAVEAT]
+    if len(points) < request.horizon_hours:
+        warnings.append(
+            f"model returned {len(points)} of {request.horizon_hours} requested hours; "
+            "totals cover the returned hours only"
+        )
 
     total_kwh = round(sum(p.power_kw for p in points), 2)  # hourly points -> kW*1h
     peak = max(points, key=lambda p: p.power_kw) if points else None
@@ -97,21 +101,23 @@ async def forecast_generation(
             "peak_kw": round(peak.power_kw, 3) if peak else 0.0,
             "peak_time": peak.time if peak else None,
             "horizon_hours": request.horizon_hours,
+            "hours_returned": len(points),
         },
         units={
             "series[].time": units.ISO_DATE,
-            "series[].power_kw": "kW_ac",
+            "series[].power_kw": units.KW_AC,
             "total_kwh": units.KWH,
-            "peak_kw": "kW_ac",
+            "peak_kw": units.KW_AC,
             "peak_time": units.ISO_DATE,
-            "horizon_hours": "hours",
+            "horizon_hours": units.HOURS,
+            "hours_returned": units.HOURS,
         },
         source=SourceRef(
             name="Quartz Solar Forecast (Open Climate Fix)",
             url=QUARTZ_URL,
-            retrieved_at=datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            retrieved_at=utc_now_iso(),
             license=QUARTZ_LICENSE,
         ),
         assumptions=[*assumptions, "cold-start forecast from NWP weather only (no live PV feed)"],
-        warnings=[OPEN_MODEL_CAVEAT],
+        warnings=warnings,
     )

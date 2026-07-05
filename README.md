@@ -76,6 +76,15 @@ $ uvx --from solar-mcp-core solar-mcp doctor
 cache dir: ~/.cache/solar-mcp (writable)
 [nrel] key present (NREL_API_KEY)
 [nrel] PASS — live ping OK, 998 requests remaining this hour
+[openei] key present (OPENEI_API_KEY)
+[openei] PASS — live ping OK
+[eia] FAIL — EIA_API_KEY not set. Setup: https://www.eia.gov/opendata/register.php
+[dsire] no key required
+[dsire] SKIP — no liveness ping defined for this source
+[uspvdb] no key required
+[uspvdb] PASS — live ping OK
+[ahj] SKIP — optional source; set AHJ_REGISTRY_TOKEN to enable
+...
 ```
 
 ## Tools (nrel-solar)
@@ -112,8 +121,9 @@ $ uv run ruff check . && uv run mypy
 $ uv run pytest --record   # refresh fixtures (needs NREL_API_KEY in .env)
 ```
 
-Repo layout: `packages/core` (shared HTTP client, cache, envelope, `solar-mcp` CLI) and
-`packages/nrel-solar` (the Phase 1 server). Full spec in [`docs/SPEC.md`](docs/SPEC.md).
+Repo layout: `packages/core` (shared HTTP client, caches, envelope, `solar-mcp` CLI)
+plus one package per server: `nrel-solar`, `solar-economics`, `solar-market`,
+`solar-forecast`. Full spec in [`docs/SPEC.md`](docs/SPEC.md).
 
 ## License
 

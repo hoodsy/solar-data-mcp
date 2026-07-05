@@ -10,12 +10,12 @@ return the federal ITC table (hardcoded current law with citation).
 from typing import Any
 
 from pydantic import BaseModel
+from solar_mcp_core.bulk import DSIRE_DATASET as DATASET
+from solar_mcp_core.bulk import DSIRE_TABLE as TABLE
 from solar_mcp_core.bulk import BulkStore, DatasetVintage
 
 from solar_mcp_economics.economics import itc_rate
 
-DATASET = "dsire_programs"
-TABLE = "dsire_programs"
 DSIRE_DOWNLOAD_HELP = (
     "Download a program export from https://programs.dsireusa.org/system/program "
     "(CSV) and pass its path or URL to sync_incentives."
@@ -52,16 +52,32 @@ def federal_incentives(install_year: int) -> list[Incentive]:
 
 
 def sync_snapshot(store: BulkStore, csv_path: Any, vintage: str) -> int:
-    """Load a DSIRE export into the bulk store; returns row count."""
-    count = store.load_csv(DATASET, TABLE, csv_path, vintage=vintage)
-    columns = {row[0] for row in store.query(f"DESCRIBE {TABLE}")}
-    missing = [c for c in REQUIRED_COLUMNS if c not in columns]
-    if missing:
+    """Load a DSIRE export into the bulk store; returns row count.
+
+    Stage-validate-swap: a bad export raises without touching a previously
+    synced snapshot or its vintage.
+    """
+    staging = "sync_staging"
+    try:
+        count = store.stage_csv(staging, csv_path)
+    except Exception as exc:
+        store.execute(f'DROP TABLE IF EXISTS "{staging}"')
         raise ValueError(
-            f"DSIRE export is missing expected columns {missing}; got {sorted(columns)}. "
-            + DSIRE_DOWNLOAD_HELP
-        )
-    return count
+            f"unreadable CSV ({type(exc).__name__}: {exc}). {DSIRE_DOWNLOAD_HELP}"
+        ) from exc
+    try:
+        columns = {str(row[0]) for row in store.query(f'DESCRIBE "{staging}"')}
+        missing = [c for c in REQUIRED_COLUMNS if c not in columns]
+        if missing:
+            raise ValueError(
+                f"DSIRE export is missing expected columns {missing}; got {sorted(columns)}. "
+                + DSIRE_DOWNLOAD_HELP
+            )
+        store.execute(f'CREATE OR REPLACE TABLE {TABLE} AS SELECT * FROM "{staging}"')
+        store.set_vintage(DATASET, vintage)
+        return count
+    finally:
+        store.execute(f'DROP TABLE IF EXISTS "{staging}"')
 
 
 def snapshot_vintage(store: BulkStore) -> DatasetVintage | None:

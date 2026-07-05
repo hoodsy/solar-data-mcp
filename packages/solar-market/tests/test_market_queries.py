@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from packages_market_test_data import CANONICAL_TTS, SOLARTRACE_CSV
+from market_test_data import CANONICAL_TTS, SOLARTRACE_CSV
 from solar_mcp_core.bulk import BulkStore
 from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_market.sync import load_solartrace, load_tracking_the_sun
@@ -75,3 +75,11 @@ async def test_permitting_input_validation(synced_store: BulkStore) -> None:
         await get_permitting_timelines(synced_store, state="CO", jurisdiction="Denver")
     with pytest.raises(SourceUnavailable, match="no SolarTRACE rows"):
         await get_permitting_timelines(synced_store, jurisdiction="Atlantis")
+
+
+@pytest.mark.anyio
+async def test_like_metacharacters_do_not_overmatch(synced_store: BulkStore) -> None:
+    with pytest.raises(SourceUnavailable, match="no SolarTRACE rows"):
+        await get_permitting_timelines(synced_store, jurisdiction="%")
+    with pytest.raises(SourceUnavailable, match="no SolarTRACE rows"):
+        await get_permitting_timelines(synced_store, jurisdiction="_enver")

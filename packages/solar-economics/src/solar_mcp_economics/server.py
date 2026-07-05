@@ -183,8 +183,9 @@ def create_server(context_factory: Callable[[], AppContext] | None = None) -> Fa
         and the federal ITC into one auditable calculation; audit_trail lists
         every component's source. It is explicitly NOT a quote (see warnings).
         Defaults (each stated in assumptions): escalation 2.5%/yr, discount 6%,
-        install year = current year, cost = Tracking the Sun median (or national
-        median before a snapshot is synced).
+        install year = current year; cost falls back to the Tracking the Sun
+        state median (needs state=XX and a synced snapshot) or a cited national
+        median.
 
         Example: estimate_roi(lat=39.74, lon=-105.18, system_capacity_kw=6,
         state="CO") -> payback_years ~9, npv_usd, irr_pct, cash_flow table.

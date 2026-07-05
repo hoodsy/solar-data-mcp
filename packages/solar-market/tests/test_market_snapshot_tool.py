@@ -3,17 +3,15 @@ from pathlib import Path
 
 import httpx
 import pytest
-from packages_market_test_data import CANONICAL_TTS
+from market_test_data import CANONICAL_TTS
 from solar_mcp_core.bulk import BulkStore
-from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import USPVDB, SourceConfig
 from solar_mcp_core.errors import SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
-from solar_mcp_core.ratelimit import TokenBucket
 from solar_mcp_market.sync import load_tracking_the_sun
 from solar_mcp_market.tools.market_snapshot import market_snapshot
 
-from conftest import FakeTime, RoutedTransport, assert_envelope
+from conftest import assert_envelope, build_client
 
 ClientFor = Callable[[SourceConfig], SolarHttpClient]
 
@@ -43,14 +41,7 @@ async def test_snapshot_fails_only_when_everything_is_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SOLAR_MCP_CACHE_DIR", str(tmp_path))
-    fake = FakeTime()
-    client = SolarHttpClient(
-        USPVDB,
-        transport=RoutedTransport(lambda request: httpx.Response(500)),
-        cache=HttpCache(path=tmp_path / "c.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(600, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    client = build_client(USPVDB, lambda request: httpx.Response(500), tmp_path)
 
     with pytest.raises(SourceUnavailable, match="no market data available"):
         await market_snapshot(client, BulkStore(path=":memory:"), state="CO")

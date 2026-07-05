@@ -3,16 +3,14 @@
 from typing import Any
 
 from solar_mcp_core import units
-from solar_mcp_core.config import USPVDB
 from solar_mcp_core.envelope import ToolResult
 from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient, freshness_warnings, source_ref
+from solar_mcp_core.validation import validate_state
 
 from solar_mcp_market import api
-from solar_mcp_market.models import validate_bbox, validate_state
+from solar_mcp_market.models import validate_bbox
 
-MW_AC = "MW_ac"
-MW_DC = "MW_dc"
 MAX_LIMIT = 100
 
 
@@ -38,7 +36,7 @@ async def find_utility_scale_projects(
         raise BadInput(field="min_capacity_mw", value=min_capacity_mw, allowed=">= 0")
     if limit is None:
         limit = 25
-        assumptions.append("limit not provided; returning up to 25 largest projects")
+        assumptions.append("limit not provided; defaulted to 25 (largest first)")
     if not 1 <= limit <= MAX_LIMIT:
         raise BadInput(field="limit", value=limit, allowed=f"1 to {MAX_LIMIT}")
 
@@ -48,7 +46,7 @@ async def find_utility_scale_projects(
     if not result.projects:
         where = state if state is not None else f"bbox {bbox}"
         raise SourceUnavailable(
-            USPVDB.name,
+            client.config.name,
             f"no utility-scale projects found for {where}"
             + (f" at >= {min_capacity_mw} MW-AC" if min_capacity_mw else ""),
         )
@@ -79,18 +77,18 @@ async def find_utility_scale_projects(
         },
         units={
             "projects[].name": units.LABEL,
-            "projects[].capacity_mw_ac": MW_AC,
-            "projects[].capacity_mw_dc": MW_DC,
+            "projects[].capacity_mw_ac": units.MW_AC,
+            "projects[].capacity_mw_dc": units.MW_DC,
             "projects[].lat": units.DEGREES,
             "projects[].lon": units.DEGREES,
-            "projects[].year": "year",
+            "projects[].year": units.YEAR,
             "project_count": units.COUNT,
-            "total_capacity_mw_ac": MW_AC,
+            "total_capacity_mw_ac": units.MW_AC,
         },
         source=source_ref(
             "USGS/LBNL US Large-Scale Solar Photovoltaic Database (USPVDB)",
             result.fetched,
-            USPVDB.license_note,
+            client.config.license_note,
         ),
         assumptions=[
             *assumptions,

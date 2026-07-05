@@ -6,7 +6,6 @@ from solar_mcp_nrel.models import (
     ArrayType,
     ModuleType,
     build_pvwatts_request,
-    validate_coords,
 )
 
 BASE: dict[str, Any] = {
@@ -85,16 +84,6 @@ def test_to_params_includes_optionals_when_set() -> None:
     params = request.to_params()
     assert params["albedo"] == 0.3
     assert params["bifaciality"] == 0.7
-
-
-def test_validate_coords() -> None:
-    validate_coords(40.0, -105.0)
-    with pytest.raises(BadInput) as excinfo:
-        validate_coords(91.0, 0.0)
-    assert excinfo.value.field == "lat"
-    with pytest.raises(BadInput) as excinfo:
-        validate_coords(0.0, -181.0)
-    assert excinfo.value.field == "lon"
 
 
 def test_solar_resource_no_data_strings_normalize_to_none() -> None:

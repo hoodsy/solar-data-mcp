@@ -1,13 +1,21 @@
 """get_incentives and sync_incentives: federal ITC table + DSIRE snapshots."""
 
+import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 
 from solar_mcp_core import units
-from solar_mcp_core.bulk import BulkStore, fetch_to_tempfile
+from solar_mcp_core.bulk import (
+    DSIRE_DATASET,
+    BulkStore,
+    default_vintage,
+    fetch_to_tempfile,
+    sync_result,
+)
 from solar_mcp_core.config import DSIRE
-from solar_mcp_core.envelope import SourceRef, ToolResult
+from solar_mcp_core.envelope import SourceRef, ToolResult, utc_now_iso
 from solar_mcp_core.errors import BadInput
+from solar_mcp_core.validation import validate_state
 
 from solar_mcp_economics.economics import ITC_CITATION
 from solar_mcp_economics.incentives import (
@@ -17,7 +25,6 @@ from solar_mcp_economics.incentives import (
     state_programs,
     sync_snapshot,
 )
-from solar_mcp_economics.models import validate_state
 
 _INCENTIVE_UNITS = {
     "state": units.LABEL,
@@ -38,7 +45,7 @@ async def get_incentives(
     state = validate_state(state)
     if install_year is None:
         install_year = datetime.now(tz=UTC).year
-        assumptions.append(f"install_year not provided; assumed {install_year}")
+        assumptions.append(f"install_year not provided; defaulted to {install_year}")
 
     federal = federal_incentives(install_year)
     programs = state_programs(store, state)
@@ -67,7 +74,7 @@ async def get_incentives(
         source=SourceRef(
             name="Federal ITC table + DSIRE snapshot",
             url="https://programs.dsireusa.org",
-            retrieved_at=vintage.loaded_at if vintage else _now_iso(),
+            retrieved_at=vintage.loaded_at if vintage else utc_now_iso(),
             license=DSIRE.license_note,
         ),
         assumptions=assumptions,
@@ -79,10 +86,7 @@ async def sync_incentives(
     store: BulkStore, *, source: str, vintage: str | None = None
 ) -> ToolResult:
     """Load a DSIRE program export (local path or https URL) into the bulk store."""
-    assumptions: list[str] = []
-    if vintage is None:
-        vintage = datetime.now(tz=UTC).strftime("%Y-%m-%d")
-        assumptions.append(f"vintage not provided; recorded as today ({vintage})")
+    vintage, assumptions = default_vintage(vintage)
 
     if source.startswith(("http://", "https://")):
         csv_path = await fetch_to_tempfile(source, source=DSIRE.name)
@@ -97,30 +101,19 @@ async def sync_incentives(
                 allowed=f"existing CSV path or https URL. {DSIRE_DOWNLOAD_HELP}",
             )
     try:
-        count = sync_snapshot(store, csv_path, vintage=vintage)
+        count = await asyncio.to_thread(sync_snapshot, store, csv_path, vintage)
     except ValueError as exc:
         raise BadInput(field="source", value=source, allowed=str(exc)) from exc
     finally:
         if cleanup is not None:
             cleanup.unlink(missing_ok=True)
 
-    return ToolResult(
-        data={"dataset": "dsire_programs", "rows_loaded": count, "vintage": vintage},
-        units={
-            "dataset": units.LABEL,
-            "rows_loaded": units.COUNT,
-            "vintage": units.ISO_DATE,
-        },
-        source=SourceRef(
-            name="DSIRE program snapshot",
-            url=source,
-            retrieved_at=_now_iso(),
-            license=DSIRE.license_note,
-        ),
+    return sync_result(
+        dataset=DSIRE_DATASET,
+        rows_loaded=count,
+        vintage=vintage,
+        source_name="DSIRE program snapshot",
+        source_url=source,
+        license_note=DSIRE.license_note,
         assumptions=assumptions,
-        warnings=[],
     )
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

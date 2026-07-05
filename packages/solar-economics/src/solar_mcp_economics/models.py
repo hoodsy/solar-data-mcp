@@ -6,12 +6,13 @@ can reason about, flagging anything (TOU, seasonal periods) the flat view
 approximates. Full TOU simulation is deliberately out of scope for v1.
 """
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, Field
 from solar_mcp_core.errors import BadInput
 
 Sector = Literal["residential", "commercial", "industrial"]
+DEFAULT_SECTOR: Sector = "residential"
 
 URDB_SECTOR: dict[str, str] = {
     "residential": "Residential",
@@ -24,76 +25,13 @@ EIA_SECTOR: dict[str, str] = {
     "industrial": "IND",
 }
 
-STATE_CODES = frozenset(
-    [
-        "AL",
-        "AK",
-        "AZ",
-        "AR",
-        "CA",
-        "CO",
-        "CT",
-        "DE",
-        "DC",
-        "FL",
-        "GA",
-        "HI",
-        "ID",
-        "IL",
-        "IN",
-        "IA",
-        "KS",
-        "KY",
-        "LA",
-        "ME",
-        "MD",
-        "MA",
-        "MI",
-        "MN",
-        "MS",
-        "MO",
-        "MT",
-        "NE",
-        "NV",
-        "NH",
-        "NJ",
-        "NM",
-        "NY",
-        "NC",
-        "ND",
-        "OH",
-        "OK",
-        "OR",
-        "PA",
-        "RI",
-        "SC",
-        "SD",
-        "TN",
-        "TX",
-        "UT",
-        "VT",
-        "VA",
-        "WA",
-        "WV",
-        "WI",
-        "WY",
-    ]
-)
-
 
 def validate_sector(sector: str) -> Sector:
     if sector not in URDB_SECTOR:
         raise BadInput(
             field="sector", value=sector, allowed="one of: residential, commercial, industrial"
         )
-    return sector  # type: ignore[return-value]  # membership check narrows it
-
-
-def validate_state(state: str) -> str:
-    upper = state.upper()
-    if upper not in STATE_CODES:
-        raise BadInput(field="state", value=state, allowed="two-letter US state code (e.g. CO)")
-    return upper
+    return cast(Sector, sector)
 
 
 # ---------------------------------------------------------------- URDB
@@ -137,7 +75,11 @@ def normalize_tariff(item: dict[str, Any]) -> Tariff | None:
     first_period = structure[0]
     tiers: list[EnergyTier] = []
     for raw_tier in first_period:
-        rate = float(raw_tier.get("rate", 0.0)) + float(raw_tier.get("adj", 0.0))
+        if not isinstance(raw_tier, dict):
+            continue
+        # URDB items carry explicit nulls ("adj": null) — `or 0.0` covers both
+        # missing and null.
+        rate = float(raw_tier.get("rate") or 0.0) + float(raw_tier.get("adj") or 0.0)
         max_usage = raw_tier.get("max")
         tiers.append(
             EnergyTier(
@@ -208,7 +150,8 @@ def _schedule_shape(*schedules: object) -> tuple[bool, bool]:
 
 class EiaPricePoint(BaseModel):
     period: str  # "YYYY-MM"
-    price_cents_per_kwh: float = Field(alias="price")
+    # EIA publishes null for small state/sector cells; tools filter these out.
+    price_cents_per_kwh: float | None = Field(alias="price")
     state: str = Field(alias="stateid")
     sector: str = Field(alias="sectorid")
 

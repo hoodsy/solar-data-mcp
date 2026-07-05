@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from packages_market_test_data import CANONICAL_TTS, SOLARTRACE_CSV
+from market_test_data import CANONICAL_TTS, SOLARTRACE_CSV
 from solar_mcp_core.bulk import BulkStore
 from solar_mcp_core.errors import BadInput
 from solar_mcp_market.sync import load_solartrace, load_tracking_the_sun
@@ -89,3 +89,57 @@ async def test_sync_tools_return_envelopes(tmp_path: Path) -> None:
 async def test_missing_source_path_rejected() -> None:
     with pytest.raises(BadInput, match="source"):
         await sync_solartrace(BulkStore(path=":memory:"), source="/nope.csv")
+
+
+@pytest.mark.anyio
+async def test_failed_sync_leaves_no_poisoned_state(tmp_path: Path) -> None:
+    """A rejected file must not leave a table or vintage behind (regression)."""
+    store = BulkStore(path=":memory:")
+    bad = csv_file(tmp_path, "a,b\n1,2\n")
+    with pytest.raises(BadInput):
+        await load_tracking_the_sun(store, source=str(bad), vintage="v")
+    assert store.vintage("tts") is None
+    assert not store.has_table("tts_systems")
+    assert not store.has_table("tts_raw")
+
+    with pytest.raises(BadInput):
+        await load_solartrace(store, source=str(csv_file(tmp_path, "state,x\nCO,1\n")), vintage="v")
+    assert store.vintage("solartrace") is None
+    assert not store.has_table("solartrace")
+
+
+@pytest.mark.anyio
+async def test_failed_resync_preserves_previous_snapshot(tmp_path: Path) -> None:
+    """Stage-validate-swap: a bad re-sync must not touch the good snapshot
+    OR its vintage (regression: old data used to get relabeled/destroyed)."""
+    store = BulkStore(path=":memory:")
+    good = csv_file(tmp_path, CANONICAL_TTS, "good.csv")
+    await load_tracking_the_sun(store, source=str(good), vintage="2024")
+
+    for bad_content, name in [
+        ("a,b\n1,2\n", "wrong_cols.csv"),
+        ("state,installed_price,system_size_DC\nCO,oops,not_numbers\n", "bad_types.csv"),
+    ]:
+        with pytest.raises(BadInput):
+            await load_tracking_the_sun(
+                store, source=str(csv_file(tmp_path, bad_content, name)), vintage="2025"
+            )
+        info = store.vintage("tts")
+        assert info is not None and info.vintage == "2024", "vintage must be untouched"
+        assert store.query("SELECT count(*) FROM tts_systems")[0][0] == 3
+        assert not store.has_table("sync_staging")
+
+
+@pytest.mark.anyio
+async def test_lbnl_sentinels_filtered_out(tmp_path: Path) -> None:
+    """LBNL encodes missing values as -9999; they must never reach the medians."""
+    store = BulkStore(path=":memory:")
+    csv = csv_file(
+        tmp_path,
+        "state,installed_price,system_size_DC,year\n"
+        "CO,21000,7.0,2024\n"
+        "CO,-9999,7.0,2024\n"
+        "CO,21000,0,2024\n",
+    )
+    count = await load_tracking_the_sun(store, source=str(csv), vintage="2024")
+    assert count == 1  # only the sane row survives

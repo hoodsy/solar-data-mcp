@@ -78,3 +78,15 @@ async def test_sync_then_get_incentives_cites_vintage(tmp_path: Path) -> None:
 async def test_sync_rejects_missing_path() -> None:
     with pytest.raises(BadInput, match="source"):
         await sync_incentives(BulkStore(path=":memory:"), source="/nope/missing.csv")
+
+
+def test_failed_sync_leaves_no_poisoned_state(tmp_path: Path) -> None:
+    """A rejected export must not leave a table or vintage behind (regression:
+    get_incentives would otherwise crash querying missing columns)."""
+    store = BulkStore(path=":memory:")
+    bad = write_csv(tmp_path, "state,name\nCO,Something\n")
+    with pytest.raises(ValueError, match="missing expected columns"):
+        sync_snapshot(store, bad, vintage="v")
+    assert store.vintage("dsire_programs") is None
+    assert not store.has_table("dsire_programs")
+    assert state_programs(store, "CO") == []

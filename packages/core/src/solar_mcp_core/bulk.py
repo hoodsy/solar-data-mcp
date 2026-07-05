@@ -11,13 +11,14 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
 
+from solar_mcp_core import units
 from solar_mcp_core.config import cache_dir
+from solar_mcp_core.envelope import SourceRef, ToolResult, utc_now_iso
 from solar_mcp_core.errors import SourceUnavailable
 
 _META_SCHEMA = """
@@ -30,6 +31,15 @@ CREATE TABLE IF NOT EXISTS _meta (
 """
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# Shared-dataset contract: these names are used across packages (economics
+# reads the Tracking the Sun table that market syncs), so they live here.
+TTS_DATASET = "tts"
+TTS_TABLE = "tts_systems"
+SOLARTRACE_DATASET = "solartrace"
+SOLARTRACE_TABLE = "solartrace"
+DSIRE_DATASET = "dsire_programs"
+DSIRE_TABLE = "dsire_programs"
 
 
 @dataclass
@@ -57,6 +67,29 @@ class BulkStore:
         self._conn = duckdb.connect(str(db))
         self._conn.execute(_META_SCHEMA)
 
+    def stage_csv(self, table: str, csv_path: Path) -> int:
+        """Load a CSV into `table` WITHOUT touching any vintage; return row count.
+
+        DuckDB streams the file — it is never held in memory, which is what
+        makes multi-GB sources like Tracking the Sun tractable. Sync loaders
+        stage into a scratch table, validate, swap, and only then record the
+        vintage — so a bad file can never corrupt a good snapshot or its
+        provenance.
+        """
+        _check_identifier(table)
+        self._conn.execute(
+            f'CREATE OR REPLACE TABLE "{table}" AS SELECT * FROM read_csv_auto(?)',
+            [str(csv_path)],
+        )
+        row = self._conn.execute(f'SELECT count(*) FROM "{table}"').fetchone()
+        return int(row[0]) if row else 0
+
+    def set_vintage(self, dataset: str, vintage: str, schema_version: int = 1) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO _meta VALUES (?, ?, ?, ?)",
+            [dataset, vintage, utc_now_iso(), schema_version],
+        )
+
     def load_csv(
         self,
         dataset: str,
@@ -65,22 +98,10 @@ class BulkStore:
         vintage: str,
         schema_version: int = 1,
     ) -> int:
-        """(Re)load a CSV into `table`, record the dataset vintage, return row count.
-
-        DuckDB streams the file — it is never held in memory, which is what
-        makes multi-GB sources like Tracking the Sun tractable.
-        """
-        _check_identifier(table)
-        self._conn.execute(
-            f'CREATE OR REPLACE TABLE "{table}" AS SELECT * FROM read_csv_auto(?)',
-            [str(csv_path)],
-        )
-        row = self._conn.execute(f'SELECT count(*) FROM "{table}"').fetchone()
-        count = int(row[0]) if row else 0
-        self._conn.execute(
-            "INSERT OR REPLACE INTO _meta VALUES (?, ?, ?, ?)",
-            [dataset, vintage, _now_iso(), schema_version],
-        )
+        """stage_csv + set_vintage in one step, for loads needing no validation
+        or transform between the two."""
+        count = self.stage_csv(table, csv_path)
+        self.set_vintage(dataset, vintage, schema_version)
         return count
 
     def vintage(self, dataset: str) -> DatasetVintage | None:
@@ -117,10 +138,6 @@ def _check_identifier(name: str) -> None:
         raise ValueError(f"invalid table name: {name!r}")
 
 
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
 async def fetch_to_tempfile(url: str, *, source: str, suffix: str = ".csv") -> Path:
     """Stream a bulk file to a temp path (sync_* tools); caller deletes it.
 
@@ -143,4 +160,43 @@ async def fetch_to_tempfile(url: str, *, source: str, suffix: str = ".csv") -> P
     except httpx.TransportError as exc:
         path.unlink(missing_ok=True)
         raise SourceUnavailable(source, f"download failed: {exc}") from exc
+    except BaseException:  # HTTP-status failures, cancellation — never leak the temp file
+        path.unlink(missing_ok=True)
+        raise
     return path
+
+
+def default_vintage(vintage: str | None) -> tuple[str, list[str]]:
+    """Today's date when the caller gave no vintage, with the assumption line."""
+    if vintage is not None:
+        return vintage, []
+    today = utc_now_iso()[:10]
+    return today, [f"vintage not provided; defaulted to today ({today})"]
+
+
+def sync_result(
+    *,
+    dataset: str,
+    rows_loaded: int,
+    vintage: str,
+    source_name: str,
+    source_url: str,
+    license_note: str,
+    assumptions: list[str],
+    extra_data: dict[str, Any] | None = None,
+) -> ToolResult:
+    """The one envelope shape every sync_* tool returns."""
+    data: dict[str, Any] = {"dataset": dataset, "rows_loaded": rows_loaded, "vintage": vintage}
+    units_map = {"dataset": units.LABEL, "rows_loaded": units.COUNT, "vintage": units.LABEL}
+    for key in extra_data or {}:
+        units_map[key] = units.LABEL
+    data.update(extra_data or {})
+    return ToolResult(
+        data=data,
+        units=units_map,
+        source=SourceRef(
+            name=source_name, url=source_url, retrieved_at=utc_now_iso(), license=license_note
+        ),
+        assumptions=assumptions,
+        warnings=[],
+    )

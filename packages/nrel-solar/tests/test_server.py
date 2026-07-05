@@ -8,6 +8,8 @@ from mcp.types import TextContent
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_nrel.server import create_server
 
+from conftest import assert_tool_docs
+
 EXPECTED_TOOLS = {
     "estimate_production",
     "get_solar_resource",
@@ -18,7 +20,9 @@ EXPECTED_TOOLS = {
 
 @pytest.fixture
 async def session(nrel_client: SolarHttpClient) -> AsyncIterator[object]:
-    server = create_server(client_factory=lambda: nrel_client)
+    from solar_mcp_nrel.server import AppContext
+
+    server = create_server(context_factory=lambda: AppContext(client=nrel_client))
     async with create_connected_server_and_client_session(
         server._mcp_server, raise_exceptions=True
     ) as client_session:
@@ -30,11 +34,7 @@ async def test_lists_all_four_tools_with_docs(session) -> None:  # type: ignore[
     tools = await session.list_tools()
     names = {tool.name for tool in tools.tools}
     assert names == EXPECTED_TOOLS
-    for tool in tools.tools:
-        assert tool.description, f"{tool.name} has no description"
-        assert "Use this" in tool.description, f"{tool.name} lacks when-to-use guidance"
-        assert "Example" in tool.description, f"{tool.name} lacks a worked example"
-        assert "Units" in tool.description, f"{tool.name} lacks units documentation"
+    assert_tool_docs(tools.tools)
 
 
 @pytest.mark.anyio

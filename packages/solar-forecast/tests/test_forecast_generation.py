@@ -21,7 +21,7 @@ def stub_predictor(request: ForecastRequest) -> list[ForecastPoint]:
 
 class TestResolveForecastRequest:
     def test_defaults_are_recorded(self) -> None:
-        request, assumptions = resolve_forecast_request(
+        request, assumptions, _warnings = resolve_forecast_request(
             lat=39.74,
             lon=-105.18,
             capacity_kw=6.0,
@@ -37,7 +37,7 @@ class TestResolveForecastRequest:
             assert expected in text
 
     def test_explicit_values_produce_no_assumptions(self) -> None:
-        _, assumptions = resolve_forecast_request(
+        _, assumptions, _warnings = resolve_forecast_request(
             lat=39.74,
             lon=-105.18,
             capacity_kw=6.0,
@@ -85,3 +85,26 @@ async def test_forecast_generation_totals_and_peak() -> None:
     assert len(result.data["series"]) == 6
     assert any("Open-source ML forecast" in w for w in result.warnings)
     assert result.source.name.startswith("Quartz")
+
+
+@pytest.mark.anyio
+async def test_predictor_crash_maps_to_source_unavailable() -> None:
+    from solar_mcp_core.errors import SourceUnavailable
+
+    def broken(request: ForecastRequest) -> list[ForecastPoint]:
+        raise RuntimeError("open-meteo download failed")
+
+    with pytest.raises(SourceUnavailable, match="RuntimeError"):
+        await forecast_generation(broken, lat=39.74, lon=-105.18, capacity_kw=6.0)
+
+
+@pytest.mark.anyio
+async def test_shortfall_hours_are_reported() -> None:
+    def short(request: ForecastRequest) -> list[ForecastPoint]:
+        return [ForecastPoint(time="2026-07-05T00:00:00Z", power_kw=1.0)]
+
+    result = await forecast_generation(
+        short, lat=39.74, lon=-105.18, capacity_kw=6.0, horizon_hours=24
+    )
+    assert result.data["hours_returned"] == 1
+    assert any("1 of 24 requested hours" in w for w in result.warnings)

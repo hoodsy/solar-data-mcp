@@ -2,7 +2,8 @@ from typing import Any
 
 import pytest
 from solar_mcp_core.errors import BadInput
-from solar_mcp_economics.models import normalize_tariff, validate_sector, validate_state
+from solar_mcp_core.validation import validate_state
+from solar_mcp_economics.models import normalize_tariff, validate_sector
 
 FLAT_SCHEDULE = [[0] * 24 for _ in range(12)]
 
@@ -91,3 +92,9 @@ def test_sector_and_state_validation() -> None:
     assert validate_state("co") == "CO"
     with pytest.raises(BadInput, match="state"):
         validate_state("XX")
+
+
+def test_null_adj_and_rate_are_tolerated() -> None:
+    tariff = normalize_tariff(item(energyratestructure=[[{"rate": 0.10, "adj": None}]]))
+    assert tariff is not None
+    assert tariff.first_tier_rate == pytest.approx(0.10)

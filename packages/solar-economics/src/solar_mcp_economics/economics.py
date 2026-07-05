@@ -18,8 +18,12 @@ ITC_CITATION = "26 USC §25D (Inflation Reduction Act of 2022)"
 
 
 def itc_rate(install_year: int) -> float:
+    if install_year < 2006:
+        return 0.0  # §25D did not exist
+    if install_year <= 2019:
+        return 0.30
     if install_year <= 2021:
-        return 0.26  # legacy phase-down; pre-IRA years kept for completeness
+        return 0.26  # pre-IRA phase-down years
     if install_year <= 2032:
         return 0.30
     if install_year == 2033:

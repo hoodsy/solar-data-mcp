@@ -193,7 +193,9 @@ def create_server(context_factory: Callable[[], AppContext] | None = None) -> Fa
 
         Use this for "who permits solar at this location and under which code
         editions". Requires AHJ_REGISTRY_TOKEN (issued by support@sunspec.org);
-        without it the error contains setup instructions.
+        without it the error contains setup instructions. The registry request
+        shape is unverified against the live service — treat results as leads,
+        not filings-grade facts.
 
         Example: identify_ahj(lat=39.74, lon=-105.18) -> AHJ name, level,
         building/electric/fire code editions.

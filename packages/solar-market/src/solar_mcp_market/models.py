@@ -1,70 +1,7 @@
 """Models and input validation for the market sources."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from solar_mcp_core.errors import BadInput
-
-STATE_CODES = frozenset(
-    [
-        "AL",
-        "AK",
-        "AZ",
-        "AR",
-        "CA",
-        "CO",
-        "CT",
-        "DE",
-        "DC",
-        "FL",
-        "GA",
-        "HI",
-        "ID",
-        "IL",
-        "IN",
-        "IA",
-        "KS",
-        "KY",
-        "LA",
-        "ME",
-        "MD",
-        "MA",
-        "MI",
-        "MN",
-        "MS",
-        "MO",
-        "MT",
-        "NE",
-        "NV",
-        "NH",
-        "NJ",
-        "NM",
-        "NY",
-        "NC",
-        "ND",
-        "OH",
-        "OK",
-        "OR",
-        "PA",
-        "RI",
-        "SC",
-        "SD",
-        "TN",
-        "TX",
-        "UT",
-        "VT",
-        "VA",
-        "WA",
-        "WV",
-        "WI",
-        "WY",
-    ]
-)
-
-
-def validate_state(state: str) -> str:
-    upper = state.upper()
-    if upper not in STATE_CODES:
-        raise BadInput(field="state", value=state, allowed="two-letter US state code (e.g. CO)")
-    return upper
 
 
 class Bbox(BaseModel):
@@ -87,6 +24,18 @@ def validate_bbox(bbox: list[float]) -> Bbox:
             allowed="west < east within -180..180 and south < north within -90..90",
         )
     return Bbox(west=west, south=south, east=east, north=north)
+
+
+class AhjRecord(BaseModel):
+    """One AHJ Registry result, loosely validated (upstream is token-gated and
+    the request shape is unverified offline — see identify_ahj)."""
+
+    name: str | None = Field(default=None, validation_alias="AHJName")
+    level: str | None = Field(default=None, validation_alias="AHJLevelCode")
+    building_code: str | None = Field(default=None, validation_alias="BuildingCode")
+    electric_code: str | None = Field(default=None, validation_alias="ElectricCode")
+    fire_code: str | None = Field(default=None, validation_alias="FireCode")
+    residential_code: str | None = Field(default=None, validation_alias="ResidentialCode")
 
 
 class UspvdbProject(BaseModel):

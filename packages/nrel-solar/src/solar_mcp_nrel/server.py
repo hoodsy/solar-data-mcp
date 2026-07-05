@@ -32,22 +32,27 @@ from solar_mcp_nrel.tools.size_system_for_target import size_system_for_target a
 class AppContext:
     client: SolarHttpClient
 
+    async def aclose(self) -> None:
+        await self.client.aclose()
+
 
 ToolContext = Context[ServerSession, AppContext]
 
 
-def create_server(
-    client_factory: Callable[[], SolarHttpClient] | None = None,
-) -> FastMCP:
-    factory = client_factory if client_factory is not None else lambda: SolarHttpClient(NREL)
+def default_context() -> AppContext:
+    return AppContext(client=SolarHttpClient(NREL))
+
+
+def create_server(context_factory: Callable[[], AppContext] | None = None) -> FastMCP:
+    factory = context_factory if context_factory is not None else default_context
 
     @asynccontextmanager
     async def lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
-        client = factory()
+        context = factory()
         try:
-            yield AppContext(client=client)
+            yield context
         finally:
-            await client.aclose()
+            await context.aclose()
 
     mcp = FastMCP(
         "nrel-solar",

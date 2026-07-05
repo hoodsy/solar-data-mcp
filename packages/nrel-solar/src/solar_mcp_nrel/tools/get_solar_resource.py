@@ -5,11 +5,10 @@ from typing import Any
 from solar_mcp_core import units
 from solar_mcp_core.envelope import ToolResult
 from solar_mcp_core.errors import SourceUnavailable
-from solar_mcp_core.http import SolarHttpClient
+from solar_mcp_core.http import SolarHttpClient, freshness_warnings, source_ref
+from solar_mcp_core.validation import validate_lat_lon
 
 from solar_mcp_nrel import api
-from solar_mcp_nrel.models import validate_coords
-from solar_mcp_nrel.tools._envelope import freshness_warnings, source_ref
 
 CELL_ASSUMPTION = (
     "NSRDB solar-resource cells are 0.1 deg (~10 km); resolved cell center is "
@@ -23,7 +22,7 @@ def resolved_cell(lat: float, lon: float) -> tuple[float, float]:
 
 
 async def get_solar_resource(client: SolarHttpClient, *, lat: float, lon: float) -> ToolResult:
-    validate_coords(lat, lon)
+    validate_lat_lon(lat, lon)
     result = await api.solar_resource(client, lat, lon)
     outputs = result.response.outputs
     if outputs is None or (outputs.avg_ghi is None and outputs.avg_dni is None):
@@ -56,7 +55,9 @@ async def get_solar_resource(client: SolarHttpClient, *, lat: float, lon: float)
     return ToolResult(
         data=data,
         units=unit_map,
-        source=source_ref("NREL Solar Resource v1 (NSRDB)", result.fetched),
+        source=source_ref(
+            "NREL Solar Resource v1 (NSRDB)", result.fetched, client.config.license_note
+        ),
         assumptions=[CELL_ASSUMPTION],
         warnings=warnings,
     )

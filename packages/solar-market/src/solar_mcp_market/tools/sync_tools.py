@@ -1,80 +1,50 @@
 """sync_tracking_the_sun / sync_solartrace: explicit bulk loaders (the only writers)."""
 
-from datetime import UTC, datetime
-
-from solar_mcp_core import units
-from solar_mcp_core.bulk import BulkStore
-from solar_mcp_core.config import SOLARTRACE, TRACKING_THE_SUN
-from solar_mcp_core.envelope import SourceRef, ToolResult
-
-from solar_mcp_market.models import validate_state
-from solar_mcp_market.sync import (
+from solar_mcp_core.bulk import (
     SOLARTRACE_DATASET,
     TTS_DATASET,
-    load_solartrace,
-    load_tracking_the_sun,
+    BulkStore,
+    default_vintage,
+    sync_result,
 )
+from solar_mcp_core.config import SOLARTRACE, TRACKING_THE_SUN
+from solar_mcp_core.envelope import ToolResult
+from solar_mcp_core.validation import validate_state
 
-_SYNC_UNITS = {
-    "dataset": units.LABEL,
-    "rows_loaded": units.COUNT,
-    "vintage": units.ISO_DATE,
-    "state_filter": units.LABEL,
-}
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+from solar_mcp_market.sync import load_solartrace, load_tracking_the_sun
 
 
 async def sync_tracking_the_sun(
     store: BulkStore, *, source: str, vintage: str | None = None, state: str | None = None
 ) -> ToolResult:
-    assumptions: list[str] = []
-    if vintage is None:
-        vintage = datetime.now(tz=UTC).strftime("%Y-%m-%d")
-        assumptions.append(f"vintage not provided; recorded as today ({vintage})")
+    vintage, assumptions = default_vintage(vintage)
     if state is not None:
         state = validate_state(state)
 
     count = await load_tracking_the_sun(store, source=source, vintage=vintage, state=state)
-    return ToolResult(
-        data={
-            "dataset": TTS_DATASET,
-            "rows_loaded": count,
-            "vintage": vintage,
-            "state_filter": state,
-        },
-        units=_SYNC_UNITS,
-        source=SourceRef(
-            name="LBNL Tracking the Sun",
-            url=source,
-            retrieved_at=_now_iso(),
-            license=TRACKING_THE_SUN.license_note,
-        ),
+    return sync_result(
+        dataset=TTS_DATASET,
+        rows_loaded=count,
+        vintage=vintage,
+        source_name="LBNL Tracking the Sun",
+        source_url=source,
+        license_note=TRACKING_THE_SUN.license_note,
         assumptions=assumptions,
-        warnings=[],
+        extra_data={"state_filter": state},
     )
 
 
 async def sync_solartrace(
     store: BulkStore, *, source: str, vintage: str | None = None
 ) -> ToolResult:
-    assumptions: list[str] = []
-    if vintage is None:
-        vintage = datetime.now(tz=UTC).strftime("%Y-%m-%d")
-        assumptions.append(f"vintage not provided; recorded as today ({vintage})")
-
+    vintage, assumptions = default_vintage(vintage)
     count = await load_solartrace(store, source=source, vintage=vintage)
-    return ToolResult(
-        data={"dataset": SOLARTRACE_DATASET, "rows_loaded": count, "vintage": vintage},
-        units=_SYNC_UNITS,
-        source=SourceRef(
-            name="NREL SolarTRACE",
-            url=source,
-            retrieved_at=_now_iso(),
-            license=SOLARTRACE.license_note,
-        ),
+    return sync_result(
+        dataset=SOLARTRACE_DATASET,
+        rows_loaded=count,
+        vintage=vintage,
+        source_name="NREL SolarTRACE",
+        source_url=source,
+        license_note=SOLARTRACE.license_note,
         assumptions=assumptions,
-        warnings=[],
     )

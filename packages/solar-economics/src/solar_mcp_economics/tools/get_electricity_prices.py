@@ -6,11 +6,11 @@ from solar_mcp_core import units
 from solar_mcp_core.envelope import ToolResult
 from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient, freshness_warnings, source_ref
+from solar_mcp_core.validation import validate_state
 
 from solar_mcp_economics import api
-from solar_mcp_economics.models import EIA_SECTOR, validate_sector, validate_state
+from solar_mcp_economics.models import DEFAULT_SECTOR, EIA_SECTOR, validate_sector
 
-EIA_LICENSE = "U.S. Energy Information Administration (public domain)"
 MAX_MONTHS = 60
 
 
@@ -24,8 +24,8 @@ async def get_electricity_prices(
     assumptions: list[str] = []
     state = validate_state(state)
     if sector is None:
-        sector = "residential"
-        assumptions.append("sector not provided; defaulted to residential")
+        sector = DEFAULT_SECTOR
+        assumptions.append(f"sector not provided; defaulted to {DEFAULT_SECTOR}")
     sector = validate_sector(sector)
     if months is None:
         months = 12
@@ -36,7 +36,7 @@ async def get_electricity_prices(
     result = await api.eia_retail_prices(
         client, state=state, sector_eia=EIA_SECTOR[sector], months=months
     )
-    points = result.response.response.data
+    points = [p for p in result.response.response.data if p.price_cents_per_kwh is not None]
     if not points:
         raise SourceUnavailable(client.config.name, f"no retail price data for {state}/{sector}")
 
@@ -44,7 +44,7 @@ async def get_electricity_prices(
         ({"period": p.period, "price_cents_per_kwh": p.price_cents_per_kwh} for p in points),
         key=lambda row: str(row["period"]),
     )
-    prices = [p.price_cents_per_kwh for p in points]
+    prices = [p.price_cents_per_kwh for p in points if p.price_cents_per_kwh is not None]
     latest = trend[-1]
 
     data: dict[str, Any] = {
@@ -65,10 +65,19 @@ async def get_electricity_prices(
             "average_cents_per_kwh": units.CENTS_PER_KWH,
             "trend[].price_cents_per_kwh": units.CENTS_PER_KWH,
         },
-        source=source_ref("EIA API v2 electricity/retail-sales", result.fetched, EIA_LICENSE),
+        source=source_ref(
+            "EIA API v2 electricity/retail-sales", result.fetched, client.config.license_note
+        ),
         assumptions=[
             *assumptions,
             f"average is over the {len(prices)} most recent months returned",
         ],
-        warnings=freshness_warnings(result.fetched),
+        warnings=[
+            *(
+                str(w["description"])
+                for w in result.response.warnings
+                if isinstance(w, dict) and "description" in w
+            ),
+            *freshness_warnings(result.fetched),
+        ],
     )

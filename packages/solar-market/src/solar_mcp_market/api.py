@@ -5,7 +5,7 @@ from typing import Any
 
 from solar_mcp_core.http import FetchedResponse, SolarHttpClient
 
-from solar_mcp_market.models import Bbox, UspvdbProject
+from solar_mcp_market.models import AhjRecord, Bbox, UspvdbProject
 
 USPVDB_PATH = "/api/uspvdb/v1/projects"
 AHJ_PATH = "/api/v1/ahj/"
@@ -19,7 +19,7 @@ class UspvdbResult:
 
 @dataclass
 class AhjResult:
-    results: list[dict[str, Any]]
+    results: list[AhjRecord]
     fetched: FetchedResponse
 
 
@@ -48,7 +48,11 @@ async def uspvdb_projects(
 
 
 async def ahj_lookup(client: SolarHttpClient, *, lat: float, lon: float) -> AhjResult:
+    # NOTE: request shape (GET with lat/lon params) follows the public docs but
+    # is UNVERIFIED against the live registry (token-gated; host unreachable at
+    # build time). Verify before production use.
     fetched = await client.get_json(AHJ_PATH, {"latitude": lat, "longitude": lon})
     body = fetched.data if isinstance(fetched.data, dict) else {}
-    results = body.get("results", [])
-    return AhjResult(results if isinstance(results, list) else [], fetched)
+    raw = body.get("results", [])
+    records = [AhjRecord.model_validate(item) for item in raw if isinstance(item, dict)]
+    return AhjResult(records, fetched)

@@ -8,6 +8,10 @@ that prints the missing key.
 Record (local only): `uv run pytest --record` sends real requests (keys from
 the environment or .env) and writes scrubbed fixtures into the subdirectory of
 whichever registered source matches the request host.
+
+Convention: test module basenames must be unique repo-wide (mypy maps them to
+top-level modules) — prefix with the package short name when a plain name
+would collide with another package's tests.
 """
 
 import hashlib
@@ -79,6 +83,47 @@ class RoutedTransport(httpx.AsyncBaseTransport):
         return self.handler(request)
 
 
+def build_client(
+    config: SourceConfig,
+    responses: (
+        "list[httpx.Response | Exception]"
+        " | Callable[[httpx.Request], httpx.Response]"
+        " | httpx.AsyncBaseTransport"
+    ),
+    tmp_path: Path,
+    fake: FakeTime | None = None,
+) -> SolarHttpClient:
+    """A SolarHttpClient wired to scripted/routed responses and a fake clock —
+    the one way every test builds a transport-stubbed client."""
+    fake = fake if fake is not None else FakeTime()
+    if isinstance(responses, httpx.AsyncBaseTransport):
+        transport = responses
+    elif callable(responses):
+        transport = RoutedTransport(responses)
+    else:
+        transport = ScriptedTransport(responses)
+    return SolarHttpClient(
+        config,
+        transport=transport,
+        cache=HttpCache(path=tmp_path / f"{config.name}.db", clock=fake.clock),
+        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
+        sleep=fake.sleep,
+    )
+
+
+def assert_tool_docs(tools: Any) -> None:
+    """Every @mcp.tool docstring carries the four-part contract."""
+    for tool in tools:
+        description = tool.description or ""
+        assert description, f"{tool.name} has no description"
+        for marker, why in (
+            ("Use this", "when-to-use guidance"),
+            ("Example", "a worked example"),
+            ("Units", "units documentation"),
+        ):
+            assert marker in description, f"{tool.name} lacks {why}"
+
+
 def assert_envelope(result: ToolResult, *, expect_assumptions: bool = True) -> None:
     """Assert the envelope contract every tool must honor.
 
@@ -143,8 +188,8 @@ class ReplayTransport(httpx.AsyncBaseTransport):
         if recorded is None:
             raise AssertionError(
                 f"No fixture for request:\n  {key}\n"
-                f"Known fixtures: {len(self.index)}. "
-                "Run `uv run pytest --record` with NREL_API_KEY set to record it."
+                f"Known fixtures: {len(self.index)}. Run `uv run pytest --record` "
+                "with the source's API key set (see .env.example) to record it."
             )
         response = recorded["response"]
         return httpx.Response(
@@ -195,7 +240,10 @@ class RecordingTransport(httpx.AsyncBaseTransport):
     def _write_fixture(
         self, key: str, request: httpx.Request, response: httpx.Response, content: bytes
     ) -> None:
-        body = _scrub_api_keys(json.loads(content))
+        try:
+            body = _scrub_api_keys(json.loads(content))
+        except json.JSONDecodeError:
+            return  # non-JSON error page: replay would be useless; skip recording
         slug = request.url.path.strip("/").replace("/", "_").replace(".json", "")
         digest = hashlib.sha1(key.encode()).hexdigest()[:8]
         fixtures_dir = self.fixtures_root / _source_dir_for_host(request.url.host)

@@ -5,13 +5,13 @@ from typing import Any
 
 from solar_mcp_core import units
 from solar_mcp_core.envelope import ToolResult
-from solar_mcp_core.http import SolarHttpClient
+from solar_mcp_core.http import SolarHttpClient, freshness_warnings, source_ref
+from solar_mcp_core.validation import default_tilt_azimuth
 
 from solar_mcp_nrel import api
 from solar_mcp_nrel.models import PVWattsRequest, SystemSpec, build_pvwatts_request
-from solar_mcp_nrel.tools._envelope import PVWATTS_CAVEAT, freshness_warnings, source_ref
+from solar_mcp_nrel.tools._envelope import PVWATTS_CAVEAT
 
-DEFAULT_AZIMUTH_DEG = 180.0
 DEFAULT_ARRAY_TYPE = "fixed_roof"
 DEFAULT_MODULE_TYPE = "standard"
 DEFAULT_LOSSES_PCT = 14.0
@@ -37,23 +37,9 @@ def resolve_request(
     """Fill unspecified spec fields with documented defaults, recording each
     injected value as an assumption. Explicitly-passed values are never
     reported as assumptions. Pure — unit-testable without HTTP."""
-    assumptions: list[str] = []
-    warnings: list[str] = []
-
-    tilt = spec.tilt_deg
-    if tilt is None:
-        tilt = min(abs(spec.lat), 90.0)
-        assumptions.append(f"tilt_deg not provided; defaulted to site latitude ({tilt:.1f} deg)")
-
-    azimuth = spec.azimuth_deg
-    if azimuth is None:
-        azimuth = DEFAULT_AZIMUTH_DEG
-        assumptions.append("azimuth_deg not provided; defaulted to 180 (south-facing)")
-    if spec.lat < 0 and azimuth == 180.0:
-        warnings.append(
-            "Southern-hemisphere site with south-facing azimuth: north-facing "
-            "(azimuth_deg=0) is usually optimal below the equator."
-        )
+    tilt, azimuth, assumptions, warnings = default_tilt_azimuth(
+        spec.lat, spec.tilt_deg, spec.azimuth_deg
+    )
 
     array_type = spec.array_type
     if array_type is None:
@@ -139,7 +125,7 @@ async def estimate_production(
             "capacity_factor": units.PERCENT,
             "solrad_annual": units.KWH_PER_M2_DAY,
         },
-        source=source_ref("NREL PVWatts v8", result.fetched),
+        source=source_ref("NREL PVWatts v8", result.fetched, client.config.license_note),
         assumptions=resolved.assumptions,
         warnings=warnings,
     )

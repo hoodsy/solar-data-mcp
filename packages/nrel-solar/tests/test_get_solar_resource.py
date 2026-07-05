@@ -2,14 +2,12 @@ from pathlib import Path
 
 import httpx
 import pytest
-from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import NREL
 from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
-from solar_mcp_core.ratelimit import TokenBucket
 from solar_mcp_nrel.tools.get_solar_resource import get_solar_resource, resolved_cell
 
-from conftest import FakeTime, ScriptedTransport, assert_envelope
+from conftest import FakeTime, assert_envelope, build_client
 
 
 def test_resolved_cell_is_grid_center() -> None:
@@ -55,13 +53,7 @@ async def test_single_missing_series_becomes_warning(
             "avg_dni": "no data",
         },
     }
-    client = SolarHttpClient(
-        NREL,
-        transport=ScriptedTransport([httpx.Response(200, json=body)]),
-        cache=HttpCache(path=tmp_path / "http.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    client = build_client(NREL, [httpx.Response(200, json=body)], tmp_path, fake)
 
     result = await get_solar_resource(client, lat=39.74, lon=-105.18)
     assert result.data["ghi_annual"] == 4.8

@@ -4,7 +4,7 @@ import calendar
 from datetime import UTC, datetime
 
 from solar_mcp_core import units
-from solar_mcp_core.envelope import SourceRef, ToolResult
+from solar_mcp_core.envelope import ToolResult, audit_entry, composite_source_ref
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_nrel.models import SystemSpec
 from solar_mcp_nrel.tools.estimate_production import estimate_production
@@ -40,6 +40,7 @@ async def compare_forecast_to_model(
         horizon_hours=horizon_hours,
     )
     horizon = int(forecast.data["horizon_hours"])
+    hours_returned = int(forecast.data["hours_returned"])
     forecast_kwh = float(forecast.data["total_kwh"])
 
     typical = await estimate_production(
@@ -50,7 +51,7 @@ async def compare_forecast_to_model(
     now = datetime.now(tz=UTC)
     month_kwh = float(typical.data["ac_monthly"][now.month - 1])
     days_in_month = calendar.monthrange(now.year, now.month)[1]
-    expected_kwh = round(month_kwh / (days_in_month * 24) * horizon, 2)
+    expected_kwh = round(month_kwh / (days_in_month * 24) * hours_returned, 2)
 
     ratio_pct = round(forecast_kwh / expected_kwh * 100, 1) if expected_kwh > 0 else None
     if ratio_pct is None:
@@ -62,11 +63,11 @@ async def compare_forecast_to_model(
     else:
         verdict = f"close to typical for {now:%B}"
 
-    warnings = [*forecast.warnings]
-    if horizon % 24 != 0:
+    warnings = list(dict.fromkeys([*forecast.warnings, *typical.warnings]))
+    if hours_returned % 24 != 0:
         warnings.append(
-            f"horizon of {horizon}h is not a whole number of days; the daylight "
-            "share skews the ratio (see assumptions)"
+            f"compared window of {hours_returned}h is not a whole number of days; "
+            "the daylight share skews the ratio (see assumptions)"
         )
 
     return ToolResult(
@@ -77,21 +78,26 @@ async def compare_forecast_to_model(
             "verdict": verdict,
             "horizon_hours": horizon,
             "month": f"{now:%Y-%m}",
+            "audit_trail": [
+                audit_entry("forecast", forecast.source),
+                audit_entry("tmy_baseline", typical.source),
+            ],
         },
         units={
             "forecast_kwh": units.KWH,
             "tmy_expected_kwh": units.KWH,
             "ratio_pct": units.PERCENT,
             "verdict": units.LABEL,
-            "horizon_hours": "hours",
+            "horizon_hours": units.HOURS,
             "month": units.ISO_DATE,
+            "audit_trail[].component": units.LABEL,
+            "audit_trail[].retrieved_at": units.ISO_DATE,
         },
-        source=SourceRef(
-            name="Quartz forecast vs NREL PVWatts TMY (composite)",
-            url="https://github.com/loganbernard/solar-data-mcp",
-            retrieved_at=datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            license="Quartz: MIT (OCF); PVWatts: NREL Developer Network",
-        ),
-        assumptions=[*forecast.assumptions, UNIFORM_ASSUMPTION],
+        source=composite_source_ref(),
+        assumptions=[
+            *forecast.assumptions,
+            *(f"tmy_baseline: {line}" for line in typical.assumptions),
+            UNIFORM_ASSUMPTION,
+        ],
         warnings=warnings,
     )

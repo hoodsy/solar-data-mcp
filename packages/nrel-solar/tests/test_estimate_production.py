@@ -3,15 +3,13 @@ from typing import Any
 
 import httpx
 import pytest
-from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import NREL
 from solar_mcp_core.errors import BadInput
 from solar_mcp_core.http import SolarHttpClient
-from solar_mcp_core.ratelimit import TokenBucket
 from solar_mcp_nrel.models import SystemSpec
 from solar_mcp_nrel.tools.estimate_production import estimate_production, resolve_request
 
-from conftest import FakeTime, ScriptedTransport, assert_envelope
+from conftest import FakeTime, assert_envelope, build_client
 
 BOULDER_LAT = 39.74
 BOULDER_LON = -105.18
@@ -40,13 +38,7 @@ def pvwatts_body(**station_overrides: Any) -> dict[str, Any]:
 def scripted_client(
     tmp_path: Path, fake: FakeTime, responses: list[httpx.Response | Exception]
 ) -> SolarHttpClient:
-    return SolarHttpClient(
-        NREL,
-        transport=ScriptedTransport(responses),
-        cache=HttpCache(path=tmp_path / "http.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    return build_client(NREL, responses, tmp_path, fake)
 
 
 class TestResolveRequest:

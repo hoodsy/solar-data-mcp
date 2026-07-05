@@ -16,6 +16,8 @@ from solar_mcp_forecast.predictor import (
 )
 from solar_mcp_forecast.server import AppContext, create_server
 
+from conftest import assert_tool_docs
+
 ClientFor = Callable[[SourceConfig], SolarHttpClient]
 
 EXPECTED_TOOLS = {"forecast_generation", "compare_forecast_to_model"}
@@ -44,10 +46,7 @@ async def session(client_for: ClientFor) -> AsyncIterator[object]:
 async def test_lists_both_tools_with_docs(session) -> None:  # type: ignore[no-untyped-def]
     tools = await session.list_tools()
     assert {tool.name for tool in tools.tools} == EXPECTED_TOOLS
-    for tool in tools.tools:
-        assert "Use this" in (tool.description or "")
-        assert "Example" in (tool.description or "")
-        assert "Units" in (tool.description or "")
+    assert_tool_docs(tools.tools)
 
 
 @pytest.mark.anyio

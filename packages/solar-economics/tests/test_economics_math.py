@@ -24,6 +24,8 @@ def flat_rows(savings_per_year: float, years: int = 25) -> list[YearRow]:
 @pytest.mark.parametrize(
     ("year", "expected"),
     [
+        (2005, 0.0),
+        (2019, 0.30),
         (2021, 0.26),
         (2022, 0.30),
         (2026, 0.30),

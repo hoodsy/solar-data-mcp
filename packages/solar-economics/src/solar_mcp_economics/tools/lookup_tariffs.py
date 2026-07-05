@@ -6,11 +6,17 @@ from solar_mcp_core import units
 from solar_mcp_core.envelope import ToolResult
 from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient, freshness_warnings, source_ref
+from solar_mcp_core.validation import validate_lat_lon
 
 from solar_mcp_economics import api
-from solar_mcp_economics.models import URDB_SECTOR, Tariff, normalize_tariff, validate_sector
+from solar_mcp_economics.models import (
+    DEFAULT_SECTOR,
+    URDB_SECTOR,
+    Tariff,
+    normalize_tariff,
+    validate_sector,
+)
 
-URDB_LICENSE = "OpenEI Utility Rate Database (CC-BY)"
 RESULT_LIMIT = 20
 
 
@@ -24,10 +30,7 @@ def _validate_location(lat: float | None, lon: float | None, utility_name: str |
         )
     if by_point:
         assert lat is not None and lon is not None
-        if not -90 <= lat <= 90:
-            raise BadInput(field="lat", value=lat, allowed="-90 to 90")
-        if not -180 <= lon <= 180:
-            raise BadInput(field="lon", value=lon, allowed="-180 to 180")
+        validate_lat_lon(lat, lon)
 
 
 async def lookup_tariffs(
@@ -38,12 +41,12 @@ async def lookup_tariffs(
     utility_name: str | None = None,
     sector: str | None = None,
 ) -> ToolResult:
+    _validate_location(lat, lon, utility_name)
     assumptions: list[str] = []
     if sector is None:
-        sector = "residential"
-        assumptions.append("sector not provided; defaulted to residential")
+        sector = DEFAULT_SECTOR
+        assumptions.append(f"sector not provided; defaulted to {DEFAULT_SECTOR}")
     sector = validate_sector(sector)
-    _validate_location(lat, lon, utility_name)
 
     result = await api.urdb_rates(
         client,
@@ -74,7 +77,8 @@ async def lookup_tariffs(
     warnings = list(dict.fromkeys(note for t in tariffs for note in t.notes))
     warnings.extend(freshness_warnings(result.fetched))
     assumptions.append(
-        f"approved schedules only; up to {RESULT_LIMIT} returned, current and recent filings"
+        f"approved schedules only; up to {RESULT_LIMIT} returned in URDB order — may "
+        "include superseded filings (check startdate/enddate via each uri)"
     )
 
     data: dict[str, Any] = {
@@ -103,7 +107,9 @@ async def lookup_tariffs(
             "tariffs[].energy_tiers[].max_usage_kwh": units.KWH,
             "tariffs[].fixed_monthly_charge_usd": units.USD_PER_MONTH,
         },
-        source=source_ref("OpenEI Utility Rate Database v8", result.fetched, URDB_LICENSE),
+        source=source_ref(
+            "OpenEI Utility Rate Database v8", result.fetched, client.config.license_note
+        ),
         assumptions=assumptions,
         warnings=warnings,
     )

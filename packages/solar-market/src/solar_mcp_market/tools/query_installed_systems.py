@@ -3,13 +3,11 @@
 from typing import Any
 
 from solar_mcp_core import units
-from solar_mcp_core.bulk import BulkStore
+from solar_mcp_core.bulk import TTS_DATASET, TTS_TABLE, BulkStore
 from solar_mcp_core.config import TRACKING_THE_SUN
 from solar_mcp_core.envelope import SourceRef, ToolResult
 from solar_mcp_core.errors import BadInput, SourceUnavailable
-
-from solar_mcp_market.models import validate_state
-from solar_mcp_market.sync import TTS_DATASET, TTS_TABLE
+from solar_mcp_core.validation import validate_state
 
 SYNC_HINT = "run sync_tracking_the_sun(source=...) first"
 

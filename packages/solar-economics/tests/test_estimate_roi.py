@@ -4,14 +4,12 @@ from pathlib import Path
 import httpx
 import pytest
 from solar_mcp_core.bulk import BulkStore
-from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import EIA, NREL, OPENEI, SourceConfig
 from solar_mcp_core.errors import BadInput
 from solar_mcp_core.http import SolarHttpClient
-from solar_mcp_core.ratelimit import TokenBucket
 from solar_mcp_economics.tools.estimate_roi import estimate_roi
 
-from conftest import FakeTime, RoutedTransport, assert_envelope
+from conftest import FakeTime, RoutedTransport, assert_envelope, build_client
 
 ClientFor = Callable[[SourceConfig], SolarHttpClient]
 
@@ -96,13 +94,7 @@ async def test_roi_falls_back_to_eia_when_urdb_down(
     transport = RoutedTransport(handler)
 
     def client(config: SourceConfig) -> SolarHttpClient:
-        return SolarHttpClient(
-            config,
-            transport=transport,
-            cache=HttpCache(path=tmp_path / f"{config.name}.db", clock=fake.clock),
-            bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-            sleep=fake.sleep,
-        )
+        return build_client(config, transport, tmp_path, fake)
 
     result = await estimate_roi(
         client(NREL),

@@ -9,7 +9,7 @@ from solar_mcp_core.errors import QuotaExceeded, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_core.ratelimit import TokenBucket
 
-from conftest import FakeTime, ScriptedTransport
+from conftest import FakeTime, ScriptedTransport, build_client
 
 
 def make_client(
@@ -17,13 +17,7 @@ def make_client(
     transport: httpx.AsyncBaseTransport,
     fake: FakeTime,
 ) -> SolarHttpClient:
-    return SolarHttpClient(
-        NREL,
-        transport=transport,
-        cache=HttpCache(path=tmp_path / "http.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    return build_client(NREL, transport, tmp_path, fake)
 
 
 def ok(body: dict[str, object], remaining: str = "999") -> httpx.Response:

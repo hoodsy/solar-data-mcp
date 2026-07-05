@@ -10,16 +10,21 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 
 from solar_mcp_core import units
-from solar_mcp_core.bulk import BulkStore
-from solar_mcp_core.envelope import SourceRef, ToolResult
+from solar_mcp_core.bulk import TTS_DATASET, TTS_TABLE, BulkStore
+from solar_mcp_core.envelope import (
+    ToolResult,
+    audit_entry,
+    composite_source_ref,
+    user_audit_entry,
+)
 from solar_mcp_core.errors import BadInput, SolarMCPError, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
+from solar_mcp_core.validation import validate_state
 from solar_mcp_nrel.models import SystemSpec
 from solar_mcp_nrel.tools.estimate_production import estimate_production
 
 from solar_mcp_economics import economics
 from solar_mcp_economics.incentives import federal_incentives
-from solar_mcp_economics.models import validate_state
 from solar_mcp_economics.tools.get_electricity_prices import get_electricity_prices
 from solar_mcp_economics.tools.lookup_tariffs import lookup_tariffs
 
@@ -36,9 +41,8 @@ NATIONAL_MEDIAN_CITATION = (
 DEFAULT_ESCALATION_PCT = 2.5
 DEFAULT_DISCOUNT_RATE_PCT = 6.0
 
-# Phase 3's sync_tracking_the_sun fills this table; until then the national
-# median constant above is the fallback.
-TTS_TABLE = "tts_systems"
+# Phase 3's sync_tracking_the_sun fills TTS_TABLE; the national median constant
+# above is the fallback until a snapshot is synced (and state given).
 
 
 async def estimate_roi(
@@ -72,21 +76,24 @@ async def estimate_roi(
         state = validate_state(state)
     if escalation_pct is None:
         escalation_pct = DEFAULT_ESCALATION_PCT
-        assumptions.append(f"escalation_pct not provided; assumed {escalation_pct}%/yr")
+        assumptions.append(f"escalation_pct not provided; defaulted to {escalation_pct}%/yr")
     if discount_rate_pct is None:
         discount_rate_pct = DEFAULT_DISCOUNT_RATE_PCT
-        assumptions.append(f"discount_rate_pct not provided; assumed {discount_rate_pct}%")
+        assumptions.append(f"discount_rate_pct not provided; defaulted to {discount_rate_pct}%")
     if install_year is None:
         install_year = datetime.now(tz=UTC).year
-        assumptions.append(f"install_year not provided; assumed {install_year}")
+        assumptions.append(f"install_year not provided; defaulted to {install_year}")
+    if not 2006 <= install_year <= 2050:
+        raise BadInput(field="install_year", value=install_year, allowed="2006 to 2050")
 
     # 1. Production (Phase 1, as a library).
     production = await estimate_production(
         nrel_client, SystemSpec(lat=lat, lon=lon), system_capacity_kw
     )
     annual_kwh = float(production.data["ac_annual_kwh"])
-    audit.append(_component("production", production.source))
+    audit.append(audit_entry("production", production.source))
     assumptions.extend(f"production: {line}" for line in production.assumptions)
+    warnings.extend(w for w in production.warnings if w not in warnings)
 
     # 2. Electricity rate: URDB flat/tiered tariff first, EIA state average fallback.
     rate_usd_per_kwh, rate_lines, rate_warnings = await _resolve_rate(
@@ -165,12 +172,7 @@ async def estimate_roi(
             "audit_trail[].component": units.LABEL,
             "audit_trail[].retrieved_at": units.ISO_DATE,
         },
-        source=SourceRef(
-            name="solar-data-mcp composite (see audit_trail)",
-            url="https://github.com/loganbernard/solar-data-mcp",
-            retrieved_at=datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            license="components individually licensed; see audit_trail",
-        ),
+        source=composite_source_ref(),
         assumptions=assumptions,
         warnings=warnings,
     )
@@ -190,14 +192,15 @@ async def _resolve_rate(
         for tariff in tariffs.data["tariffs"]:
             rate = tariff["first_tier_rate_usd_per_kwh"]
             if not tariff["is_tou"] and rate:
-                audit.append(_component("electricity_rate", tariffs.source))
+                audit.append(audit_entry("electricity_rate", tariffs.source))
                 return (
                     float(rate),
                     [
                         f"electricity rate from URDB tariff {tariff['name']!r} "
-                        f"({tariff['utility']}), tier 1"
+                        f"({tariff['utility']}), tier 1",
+                        *(f"tariff: {line}" for line in tariffs.assumptions),
                     ],
-                    [],
+                    list(tariffs.warnings),
                 )
         failure = "URDB returned only time-of-use schedules"
     except SolarMCPError as exc:
@@ -209,7 +212,7 @@ async def _resolve_rate(
             failure + "; pass state=XX to fall back to the EIA state-average rate",
         )
     prices = await get_electricity_prices(eia_client, state=state)
-    audit.append(_component("electricity_rate", prices.source))
+    audit.append(audit_entry("electricity_rate", prices.source))
     rate = float(prices.data["latest_price_cents_per_kwh"]) / 100
     return (
         rate,
@@ -230,22 +233,23 @@ def _resolve_cost(
     if install_cost_usd is not None:
         if install_cost_usd <= 0:
             raise BadInput(field="install_cost_usd", value=install_cost_usd, allowed="> 0")
-        audit.append(_user_component("install_cost"))
+        audit.append(user_audit_entry("install_cost"))
         return install_cost_usd, []
     if cost_per_watt is not None:
         if cost_per_watt <= 0:
             raise BadInput(field="cost_per_watt", value=cost_per_watt, allowed="> 0")
-        audit.append(_user_component("install_cost"))
+        audit.append(user_audit_entry("install_cost"))
         return cost_per_watt * watts, [f"install cost = {cost_per_watt} $/W x system size"]
 
     if state is not None and store.has_table(TTS_TABLE):
         rows = store.query(
-            f"SELECT median(price_per_watt), count(*) FROM {TTS_TABLE} WHERE upper(state) = ?",
+            f"SELECT median(price_per_watt), count(price_per_watt) "
+            f"FROM {TTS_TABLE} WHERE upper(state) = ?",
             [state],
         )
         median, count = rows[0] if rows else (None, 0)
         if median is not None and count:
-            vintage = store.vintage("tts")
+            vintage = store.vintage(TTS_DATASET)
             audit.append(
                 {
                     "component": "install_cost",
@@ -278,21 +282,3 @@ def _resolve_cost(
             f"{NATIONAL_MEDIAN_COST_PER_WATT} $/W ({NATIONAL_MEDIAN_CITATION})"
         ],
     )
-
-
-def _component(component: str, source: SourceRef) -> dict[str, str]:
-    return {
-        "component": component,
-        "source": source.name,
-        "url": source.url,
-        "retrieved_at": source.retrieved_at,
-    }
-
-
-def _user_component(component: str) -> dict[str, str]:
-    return {
-        "component": component,
-        "source": "user-provided",
-        "url": "",
-        "retrieved_at": "n/a",
-    }

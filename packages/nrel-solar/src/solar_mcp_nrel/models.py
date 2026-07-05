@@ -183,11 +183,3 @@ def build_pvwatts_request(**kwargs: Any) -> PVWattsRequest:
         field = str(first["loc"][0]) if first["loc"] else "input"
         allowed = _RANGE_HINTS.get(field, first["msg"])
         raise BadInput(field=field, value=first.get("input"), allowed=allowed) from exc
-
-
-def validate_coords(lat: float, lon: float) -> None:
-    """Range-check bare coordinates for endpoints without a request model."""
-    if not -90 <= lat <= 90:
-        raise BadInput(field="lat", value=lat, allowed=_RANGE_HINTS["lat"])
-    if not -180 <= lon <= 180:
-        raise BadInput(field="lon", value=lon, allowed=_RANGE_HINTS["lon"])

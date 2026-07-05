@@ -10,6 +10,8 @@ from solar_mcp_core.config import AHJ, USPVDB, SourceConfig
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_market.server import AppContext, create_server
 
+from conftest import assert_tool_docs
+
 ClientFor = Callable[[SourceConfig], SolarHttpClient]
 
 EXPECTED_TOOLS = {
@@ -42,11 +44,7 @@ async def test_lists_all_seven_tools_with_docs(session) -> None:  # type: ignore
     tools = await session.list_tools()
     names = {tool.name for tool in tools.tools}
     assert names == EXPECTED_TOOLS
-    for tool in tools.tools:
-        assert tool.description, f"{tool.name} has no description"
-        assert "Use this" in tool.description, f"{tool.name} lacks when-to-use guidance"
-        assert "Example" in tool.description, f"{tool.name} lacks a worked example"
-        assert "Units" in tool.description, f"{tool.name} lacks units documentation"
+    assert_tool_docs(tools.tools)
 
 
 @pytest.mark.anyio

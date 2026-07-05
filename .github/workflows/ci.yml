@@ -19,8 +19,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: uv sync --all-packages
-      # Tests are replay-only: fixtures/nrel/ answers every request in-process,
-      # and no NREL_API_KEY secret exists in CI, so live calls are impossible.
+      # Tests are replay-only: fixtures/<source>/ answers every request
+      # in-process, and no API-key secrets exist in CI, so live calls are impossible.
       - run: |
           case "${{ matrix.task }}" in
             lint) uv run ruff check . && uv run ruff format --check . ;;

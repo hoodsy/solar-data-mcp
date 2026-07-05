@@ -32,10 +32,10 @@ and incentives, analyze permitting timelines, and pull market data.
 
 | Phase | Server | Sources | Status |
 |---|---|---|---|
-| 1 | `nrel-solar` | PVWatts v8, NSRDB | **Building** |
-| 2 | `solar-economics` | OpenEI URDB, EIA v2, DSIRE | Spec'd (Notion) |
-| 3 | `solar-market` | SolarTRACE, Tracking the Sun, USPVDB, AHJ Registry | Spec'd (Notion) |
-| 4 | `solar-forecast` + adapters | Quartz (OCF), Google Solar (optional) | Spec'd (Notion) |
+| 1 | `nrel-solar` | PVWatts v8, NSRDB | **Shipped** |
+| 2 | `solar-economics` | OpenEI URDB, EIA v2, DSIRE | **Shipped** |
+| 3 | `solar-market` | SolarTRACE, Tracking the Sun, USPVDB, AHJ Registry | **Shipped** |
+| 4 | `solar-forecast` + adapters | Quartz (OCF), Google Solar (optional) | **Shipped** (Quartz; Google adapter excluded) |
 
 ---
 
@@ -179,11 +179,11 @@ Inverse solve: target annual kWh → required kW (search over cached PVWatts cal
 
 ## Definition of done (v0.1)
 
-- [ ] 4 tools above, typed envelope, assumptions populated
-- [ ] Fixture tests: 100% of tools, zero live calls in CI
-- [ ] `solar-mcp doctor` validates NREL key
-- [ ] README quickstart ≤ 5 minutes to first result
-- [ ] Published to PyPI + submitted to MCP registries (official registry, Glama, Smithery)
+- [x] 4 tools above, typed envelope, assumptions populated
+- [x] Fixture tests: 100% of tools, zero live calls in CI
+- [x] `solar-mcp doctor` validates NREL key
+- [x] README quickstart ≤ 5 minutes to first result
+- [ ] Published to PyPI + submitted to MCP registries (manual release step)
 
 ---
 

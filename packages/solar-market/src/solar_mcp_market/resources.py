@@ -32,6 +32,9 @@ SunSpec AHJ Registry — jurisdictions and adopted code editions.
 
 - Access: token issued by email (support@sunspec.org); throttled. Responses
   are cached for 90 days because AHJ boundaries change rarely.
+- This client's request shape follows the public docs but is unverified
+  against the live registry (token-gated); confirm results before relying
+  on them for filings.
 - Verify code editions with the jurisdiction before filing.
 """
 

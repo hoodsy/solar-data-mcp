@@ -3,15 +3,13 @@ from pathlib import Path
 
 import httpx
 import pytest
-from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import USPVDB, SourceConfig
-from solar_mcp_core.errors import BadInput
+from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
-from solar_mcp_core.ratelimit import TokenBucket
 from solar_mcp_market.models import validate_bbox
 from solar_mcp_market.tools.find_utility_scale_projects import find_utility_scale_projects
 
-from conftest import FakeTime, RoutedTransport, assert_envelope
+from conftest import RoutedTransport, assert_envelope, build_client
 
 ClientFor = Callable[[SourceConfig], SolarHttpClient]
 
@@ -57,16 +55,7 @@ async def test_input_validation_before_http(client_for: ClientFor) -> None:
 async def test_postgrest_filter_syntax(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The wire format is PostgREST operators — pin it so refactors can't drift."""
     transport = RoutedTransport(lambda request: httpx.Response(200, json=[]))
-    fake = FakeTime()
-    client = SolarHttpClient(
-        USPVDB,
-        transport=transport,
-        cache=HttpCache(path=tmp_path / "c.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(600, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
-
-    from solar_mcp_core.errors import SourceUnavailable
+    client = build_client(USPVDB, transport, tmp_path)
 
     with pytest.raises(SourceUnavailable):  # empty result set -> no projects found
         await find_utility_scale_projects(

@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from pathlib import Path
 
 import httpx
 import pytest
@@ -7,7 +8,7 @@ from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
 from solar_mcp_economics.tools.lookup_tariffs import lookup_tariffs
 
-from conftest import assert_envelope
+from conftest import assert_envelope, build_client
 
 ClientFor = Callable[[SourceConfig], SolarHttpClient]
 
@@ -45,16 +46,9 @@ async def test_bad_sector_rejected_before_http(client_for: ClientFor) -> None:
 
 @pytest.mark.anyio
 async def test_utility_filter_is_enforced_client_side(
-    tmp_path: object, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Upstream utility_name matching is fuzzy; the tool must post-filter."""
-    from pathlib import Path
-
-    from solar_mcp_core.cache import HttpCache
-    from solar_mcp_core.ratelimit import TokenBucket
-
-    from conftest import FakeTime, RoutedTransport
-
     monkeypatch.setenv("OPENEI_API_KEY", "TESTKEY")
     body = {
         "items": [
@@ -74,15 +68,7 @@ async def test_utility_filter_is_enforced_client_side(
             },
         ]
     }
-    fake = FakeTime()
-    assert isinstance(tmp_path, Path)
-    client = SolarHttpClient(
-        OPENEI,
-        transport=RoutedTransport(lambda request: httpx.Response(200, json=body)),
-        cache=HttpCache(path=tmp_path / "c.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    client = build_client(OPENEI, lambda request: httpx.Response(200, json=body), tmp_path)
 
     result = await lookup_tariffs(client, utility_name="Public Service")
     names = [t["name"] for t in result.data["tariffs"]]

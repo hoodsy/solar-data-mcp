@@ -4,11 +4,9 @@ from typing import Any
 
 import httpx
 import pytest
-from solar_mcp_core.cache import HttpCache
 from solar_mcp_core.config import NREL
 from solar_mcp_core.errors import BadInput, SourceUnavailable
 from solar_mcp_core.http import SolarHttpClient
-from solar_mcp_core.ratelimit import TokenBucket
 from solar_mcp_nrel.models import SystemSpec
 from solar_mcp_nrel.tools.compare_orientations import (
     MAX_COMBINATIONS,
@@ -17,7 +15,7 @@ from solar_mcp_nrel.tools.compare_orientations import (
     validate_grid,
 )
 
-from conftest import FakeTime, RoutedTransport, assert_envelope
+from conftest import RoutedTransport, assert_envelope, build_client
 
 BOULDER = SystemSpec(lat=39.74, lon=-105.18)
 
@@ -87,14 +85,7 @@ async def test_compare_orientations_replay(nrel_client: SolarHttpClient) -> None
 
 
 def routed_client(tmp_path: Path, handler: Any) -> SolarHttpClient:
-    fake = FakeTime()
-    return SolarHttpClient(
-        NREL,
-        transport=RoutedTransport(handler),
-        cache=HttpCache(path=tmp_path / "http.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    return build_client(NREL, handler, tmp_path)
 
 
 def ok_body(ac_annual: float) -> dict[str, Any]:
@@ -138,14 +129,7 @@ async def test_quota_exhaustion_short_circuits_the_sweep(
     """After the first 429, untried combinations must not burn the rolling window."""
     monkeypatch.setenv("NREL_API_KEY", "TESTKEY")
     transport = RoutedTransport(lambda request: httpx.Response(429))
-    fake = FakeTime()
-    client = SolarHttpClient(
-        NREL,
-        transport=transport,
-        cache=HttpCache(path=tmp_path / "http.db", clock=fake.clock),
-        bucket=TokenBucket.per_hour(1000, clock=fake.clock, sleep=fake.sleep),
-        sleep=fake.sleep,
-    )
+    client = build_client(NREL, transport, tmp_path)
 
     with pytest.raises(SourceUnavailable, match="orientation combinations failed"):
         await compare_orientations(
