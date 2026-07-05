@@ -13,6 +13,7 @@ from solar_data_mcp.server import (
     main,
     missing_key_note,
 )
+from solar_data_mcp.skills import INDEX_URI, load_skills
 from solar_mcp_core.bulk import BulkStore
 from solar_mcp_core.config import AHJ, EIA, NREL, OPENEI, USPVDB, SourceConfig
 from solar_mcp_core.http import SolarHttpClient
@@ -63,6 +64,10 @@ EXPECTED_RESOURCES = {
     "source://solar-forecast/coverage",
 }
 
+# Skill URIs come from the loader; the canonical name set is pinned in
+# test_skills.py, so a deleted skill file cannot silently shrink this.
+EXPECTED_SKILL_RESOURCES = {INDEX_URI, *(f"skill://solar/{s.name}" for s in load_skills())}
+
 # Same shape as the market tests' canonical export; kept inline because test
 # modules must not import across packages. CO median price_per_watt = 3.25.
 CANONICAL_TTS = (
@@ -111,13 +116,16 @@ async def test_lists_all_eighteen_tools_with_docs(session) -> None:  # type: ign
 
 
 @pytest.mark.anyio
-async def test_all_thirteen_resources_exposed(session) -> None:  # type: ignore[no-untyped-def]
+async def test_all_resources_exposed(session) -> None:  # type: ignore[no-untyped-def]
     resources = await session.list_resources()
     uris = {str(resource.uri) for resource in resources.resources}
-    assert uris == EXPECTED_RESOURCES
+    assert uris == EXPECTED_RESOURCES | EXPECTED_SKILL_RESOURCES
 
     content = await session.read_resource("source://nrel/license")
     assert "developer.nlr.gov" in content.contents[0].text
+
+    index = await session.read_resource(INDEX_URI)
+    assert "skill://solar/solar-site-assessment" in index.contents[0].text
 
 
 @pytest.mark.anyio

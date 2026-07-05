@@ -1,8 +1,10 @@
-# Skill catalog (design doc)
+# Skill catalog
 
-Status: brainstorm — nothing here is built yet. This doc catalogs the agent skills we
-intend to ship on top of the unified `solar-data` server and records the workflow
-knowledge each one must encode.
+Status: **shipped**. The eleven skills below live in
+`packages/solar-data-mcp/src/solar_data_mcp/skills/` and are served by the unified
+`solar-data` server as MCP resources — `skill://solar/<name>` per skill, with
+`skill://solar/index` as the routing table. This doc records the catalog's design
+rationale; the skill files themselves are the operational source of truth.
 
 ## Skills vs tools
 
@@ -21,12 +23,32 @@ Two facts shape this catalog:
    bucket drawn on by production, ROI, *and* forecast-vs-model tools, and one DuckDB
    handle backs every snapshot. Skills that chain heavy sweeps with ROI calls must
    budget accordingly.
-2. **Distribution.** Skills live in a `skills/` directory in this repo (source of
-   truth, versioned with the tool signatures they describe) and are served by the
-   umbrella server as MCP resources under `skill://solar/<name>`, mirroring the
-   existing `source://<name>/license` pattern. Optionally re-packaged as a Claude Code
-   plugin later; never a separate repo — skills reference exact tool names and
-   parameters and must change in lockstep with them.
+2. **Distribution.** Skills ship *inside* the umbrella package
+   (`packages/solar-data-mcp/src/solar_data_mcp/skills/*.md`) so the wheel always
+   serves the skill version matching its tool signatures, exposed as MCP resources
+   under `skill://solar/<name>` — the same pattern as `source://<name>/license`.
+   Each file carries minimal YAML frontmatter (name, description, tools) so the set
+   can be re-packaged as a Claude Code plugin later; never a separate repo — skills
+   reference exact tool names and parameters and must change in lockstep with them
+   (a test asserts every tool a skill names exists on the server).
+
+## Routing
+
+Routing is by **question shape, never by persona** — a homeowner, an installer, and an
+analyst asking the same question get the same skill. Nobody declares who they are; the
+persona tables below are a design/coverage lens, not a runtime concept. The mechanism,
+in order of preference:
+
+1. **Skill-native hosts** (Claude Code and similar) match the incoming question
+   against each skill's frontmatter `description` — those descriptions are written as
+   routing triggers ("Use when the user has a bid or quote in hand…").
+2. **Plain MCP hosts** get pointed at the routing table by the server's
+   `instructions`: "read `skill://solar/index` and load the matching
+   `skill://solar/<name>` before multi-tool workflows." The index is generated from
+   the frontmatter, so it cannot drift from the files.
+3. Two standing routes hold regardless of entry point: `solar-data-conventions` is
+   loaded alongside everything (envelope literacy), and any "snapshot not synced"
+   error reroutes to `solar-data-sync`.
 
 ## Personas
 
@@ -324,16 +346,12 @@ and name the closest tool family.
   two-call sequence that lives naturally inside `solar-proposal-builder` and
   `solar-market-brief` rather than as its own trigger.
 
-## Suggested build order
+## Implementation notes
 
-Tier 1 — validates the format and covers each persona's #1 ask:
-1. `solar-site-assessment` (homeowner)
-2. `solar-data-conventions` (referenced by everything)
-3. `solar-quote-review` (homeowner — highest-stakes real-world use)
-4. `solar-market-brief` (analyst)
-5. `solar-data-sync` (unblocks 3, 4, and half of the rest)
-
-Tier 2: `solar-proposal-builder`, `solar-performance-check`, `solar-pricing-analysis`.
-
-Tier 3: `solar-territory-expansion`, `solar-utility-scale-scout`,
-`solar-policy-incentive-scan`.
+All eleven skills shipped together in
+`packages/solar-data-mcp/src/solar_data_mcp/skills/`, registered by
+`solar_data_mcp/skills/__init__.py` (frontmatter parser, index builder, resource
+registration) and wired into `server.py` alongside the `source://` resources. Tests in
+`packages/solar-data-mcp/tests/test_skills.py` pin the catalog (a deleted skill fails
+CI), verify every tool a skill names exists on the real server and is mentioned in the
+skill body, and assert the index and skill resources are served verbatim.

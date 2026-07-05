@@ -30,6 +30,8 @@ from solar_mcp_market import server as market_server
 from solar_mcp_nrel import resources as nrel_resources
 from solar_mcp_nrel import server as nrel_server
 
+from solar_data_mcp import skills
+
 INSTRUCTIONS = (
     "All US open solar data in one server: NREL production modeling "
     "(estimate_production, get_solar_resource, compare_orientations, "
@@ -43,7 +45,10 @@ INSTRUCTIONS = (
     "the production, ROI, and forecast-vs-model tools; OPENEI_API_KEY unlocks "
     "lookup_tariffs; EIA_API_KEY unlocks get_electricity_prices; "
     "AHJ_REGISTRY_TOKEN (optional) unlocks identify_ahj. Market and forecast "
-    "tools need no key. Run `solar-data-mcp doctor` to check setup."
+    "tools need no key. Run `solar-data-mcp doctor` to check setup. "
+    "Before any multi-tool workflow, read skill://solar/index and load the "
+    "matching skill://solar/<name> resource — skills encode tool ordering, "
+    "sync prerequisites, and reporting rules for common question shapes."
 )
 
 
@@ -111,6 +116,7 @@ def create_server(context_factory: Callable[[], CompositeContext] | None = None)
     forecast_server.register_tools(mcp)
     for resources in (nrel_resources, economics_resources, market_resources, forecast_resources):
         resources.register(mcp)
+    skills.register(mcp)
     return mcp
 
 

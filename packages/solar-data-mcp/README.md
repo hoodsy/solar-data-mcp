@@ -44,6 +44,16 @@ instructions instead of failing silently. Check your setup any time:
 $ uvx solar-data-mcp doctor
 ```
 
+## Skills
+
+The server also ships eleven **skills** — procedural instructions that teach an agent
+how to chain the tools for common question shapes (site assessment, quote review,
+market briefs, …), including sync prerequisites and reporting rules. They are served
+as MCP resources: `skill://solar/index` is the routing table (match the question
+against it, load the referenced `skill://solar/<name>`), and the server instructions
+point agents there automatically. Catalog and design rationale:
+[`docs/skills.md`](https://github.com/hoodsy/solar-data-mcp/blob/main/docs/skills.md).
+
 ## Forecast model note
 
 `forecast_generation` uses the open Quartz model, whose package pins an old
