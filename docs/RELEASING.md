@@ -12,29 +12,59 @@ name on PyPI belongs to an unrelated project — never use it.
 
 ## One-time setup
 
-Do these once before the first release; check them off here as they're done.
+Done once before the first release; kept for the record and for anyone
+cloning this setup.
 
-- [ ] Six pending publishers registered on PyPI
+- [x] Six projects created on PyPI via token bootstrap (2026-07-06)
+- [ ] Trusted publisher added on each of the six project pages
 - [x] `pypi` environment created in the GitHub repo (2026-07-05)
 
-### 1. Register the PyPI trusted publishers
+### 1. Bootstrap the projects, then add trusted publishers
 
-The projects don't exist on PyPI yet, so use **pending publishers**:
-<https://pypi.org/manage/account/publishing/> → "Add a new pending publisher"
-(GitHub tab). Repeat six times, once per project name, with identical values
-otherwise:
+**Pending publishers do not work for this monorepo.** PyPI rejects a second
+*pending* publisher that shares the repo/workflow/environment config with an
+existing one ("A pending trusted publisher matching this configuration has
+already been registered for a different project name") — and all six of ours
+are identical except the project name. The restriction only applies while a
+project doesn't exist yet, so the projects were created with a one-time
+token instead (done for v0.1.0):
 
-| Field             | Value                                    |
-| ----------------- | ---------------------------------------- |
-| PyPI project name | each of the six package names above      |
-| Owner             | `hoodsy`                                 |
-| Repository name   | `solar-data-mcp`                         |
-| Workflow name     | `release.yml`                            |
-| Environment name  | `pypi`                                   |
+1. Create an **account-scoped API token** at
+   <https://pypi.org/manage/account/token/>; put it in `.env` (gitignored)
+   as `PYPI_TOKEN=...`.
+2. Build and publish, dependencies first:
 
-Pending publishers convert to regular trusted publishers automatically on
-first publish. If a publish fails with `invalid-publisher`, one of these
-values doesn't match — fix the registration, not the workflow.
+   ```sh
+   uv build --all-packages
+   export UV_PUBLISH_TOKEN=$(grep '^PYPI_TOKEN=' .env | cut -d= -f2-)
+   uv publish --check-url https://pypi.org/simple/ dist/solar_data_mcp_core-*
+   uv publish --check-url https://pypi.org/simple/ dist/solar_data_mcp_{nrel,economics,market,forecast}-*
+   uv publish --check-url https://pypi.org/simple/ dist/solar_data_mcp-[0-9]*
+   ```
+
+   Expect `429 Too many new projects created`: new accounts can create only
+   ~4 projects per rolling ~24 h window. Just re-run the same commands after
+   the window clears — `--check-url` makes them idempotent.
+3. On each of the six now-existing projects, add a trusted publisher:
+   project page → **Manage → Publishing** → GitHub form. Identical config
+   across *existing* projects is allowed:
+
+   | Field             | Value            |
+   | ----------------- | ---------------- |
+   | Owner             | `hoodsy`         |
+   | Repository name   | `solar-data-mcp` |
+   | Workflow name     | `release.yml`    |
+   | Environment name  | `pypi`           |
+
+4. **Delete the API token** and any leftover pending publisher.
+
+If a later publish fails with `invalid-publisher`, one of the table values
+doesn't match — fix the publisher registration, not the workflow.
+
+**Adding a seventh package later:** its first upload creates a new project,
+so either bootstrap that one package with a token as above, or register a
+*single* pending publisher for it (one pending registration is fine — the
+conflict only arises with a second pending one on the same config).
 
 ### 2. Create the GitHub `pypi` environment
 
