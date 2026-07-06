@@ -16,7 +16,7 @@ Done once before the first release; kept for the record and for anyone
 cloning this setup.
 
 - [x] Six projects created on PyPI via token bootstrap (2026-07-06)
-- [ ] Trusted publisher added on each of the six project pages
+- [x] Trusted publisher added on each of the six project pages (2026-07-07)
 - [x] `pypi` environment created in the GitHub repo (2026-07-05)
 
 ### 1. Bootstrap the projects, then add trusted publishers
