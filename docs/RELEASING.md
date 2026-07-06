@@ -151,6 +151,11 @@ gh release create "v$NEW" --title "v$NEW" --generate-notes
   already-published packages are skipped, missing ones publish.
 - `invalid-publisher` → trusted-publisher registration mismatch; see the
   one-time setup table.
+- `invalid-pending-publisher: valid token, but project already exists` → a
+  stale **pending** publisher on the account matches the workflow's claims
+  and shadows the per-project publishers. Delete it at
+  <https://pypi.org/manage/account/publishing/>, then re-run the failed job.
+  (Hit this on v0.1.0.)
 - If the fix needs a code change, land it on `main`, bump the **patch**
   version, and restart from step 3 with a new tag. Never delete or reuse a
   tag that already triggered a publish.
