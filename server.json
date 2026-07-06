@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.hoodsy/solar-data-mcp",
   "title": "Solar Data",
-  "description": "US open solar data for agents: PVWatts production modeling, NSRDB irradiance, utility tariffs and payback economics, market intelligence (Tracking the Sun, SolarTRACE, USPVDB), and open generation forecasts — 18 tools, 11 skills, every result with units, source, and assumptions.",
+  "description": "US open solar data for agents: PVWatts production, tariffs & ROI, market data, forecasts. 18 tools.",
   "repository": {
     "url": "https://github.com/hoodsy/solar-data-mcp",
     "source": "github"
