@@ -1,6 +1,6 @@
 [project]
 name = "solar-data-mcp-economics"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for solar economics: retail tariffs (OpenEI URDB), electricity prices (EIA), incentives (DSIRE), and auditable ROI estimates"
 readme = "README.md"
 license = "MIT"

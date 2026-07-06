@@ -1,6 +1,6 @@
 [project]
 name = "solar-data-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "All US open solar data in one MCP server: PVWatts production, tariffs & ROI, market intelligence, forecasts"
 readme = "README.md"
 license = "MIT"

@@ -1,6 +1,6 @@
 [project]
 name = "solar-data-mcp-forecast"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for solar generation forecasts via the open Quartz Solar Forecast model (Open Climate Fix)"
 readme = "README.md"
 license = "MIT"

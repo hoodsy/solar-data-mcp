@@ -1,5 +1,7 @@
 # solar-data-mcp
 
+<!-- mcp-name: io.github.hoodsy/solar-data-mcp -->
+
 All US open solar data in **one MCP server**: NREL PVWatts production modeling,
 tariffs & ROI economics, market intelligence, and generation forecasts — 18
 tools, every result carrying data + units + source + assumptions + warnings.

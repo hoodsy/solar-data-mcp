@@ -1,6 +1,6 @@
 [project]
 name = "solar-data-mcp-market"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for US solar market data: permitting timelines (SolarTRACE), installed systems (Tracking the Sun), utility-scale plants (USPVDB), AHJ lookup"
 readme = "README.md"
 license = "MIT"

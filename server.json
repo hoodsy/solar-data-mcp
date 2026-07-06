@@ -1,0 +1,50 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.hoodsy/solar-data-mcp",
+  "title": "Solar Data",
+  "description": "US open solar data for agents: PVWatts production modeling, NSRDB irradiance, utility tariffs and payback economics, market intelligence (Tracking the Sun, SolarTRACE, USPVDB), and open generation forecasts — 18 tools, 11 skills, every result with units, source, and assumptions.",
+  "repository": {
+    "url": "https://github.com/hoodsy/solar-data-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/hoodsy/solar-data-mcp",
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "solar-data-mcp",
+      "version": "0.1.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "NREL_API_KEY",
+          "description": "Free key from https://developer.nlr.gov/signup/ — required for production modeling and irradiance tools",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "OPENEI_API_KEY",
+          "description": "Free key for URDB utility tariff lookups (economics tools)",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "EIA_API_KEY",
+          "description": "Free key for EIA electricity price data (economics tools)",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "AHJ_REGISTRY_TOKEN",
+          "description": "Optional SunSpec AHJ Registry token for permitting-authority lookups",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

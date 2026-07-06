@@ -1057,7 +1057,7 @@ wheels = [
 
 [[package]]
 name = "solar-data-mcp"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/solar-data-mcp" }
 dependencies = [
     { name = "duckdb" },
@@ -1086,7 +1086,7 @@ requires-dist = [
 
 [[package]]
 name = "solar-data-mcp-core"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "httpx" },
@@ -1101,7 +1101,7 @@ requires-dist = [
 
 [[package]]
 name = "solar-data-mcp-economics"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/solar-economics" }
 dependencies = [
     { name = "duckdb" },
@@ -1124,7 +1124,7 @@ requires-dist = [
 
 [[package]]
 name = "solar-data-mcp-forecast"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/solar-forecast" }
 dependencies = [
     { name = "httpx" },
@@ -1145,7 +1145,7 @@ requires-dist = [
 
 [[package]]
 name = "solar-data-mcp-market"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/solar-market" }
 dependencies = [
     { name = "duckdb" },
@@ -1166,7 +1166,7 @@ requires-dist = [
 
 [[package]]
 name = "solar-data-mcp-nrel"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/nrel-solar" }
 dependencies = [
     { name = "httpx" },

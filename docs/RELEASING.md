@@ -106,6 +106,9 @@ uv sync                                      # refresh uv.lock
 uv run pytest -q                             # sanity after the bump
 ```
 
+Also bump **both** `version` fields in `server.json` (the MCP registry
+listing: top-level and inside `packages[0]`).
+
 ### 4. Commit, tag, push
 
 ```sh
@@ -136,11 +139,17 @@ and spot-check <https://pypi.org/project/solar-data-mcp/> shows the new version.
 gh release create "v$NEW" --title "v$NEW" --generate-notes
 ```
 
-### 7. Still manual after publish
+### 7. Update the MCP registry listing
 
-- MCP registry listing (points at the PyPI package) — first release, then on
-  metadata changes
-- Demo GIF in the README — first release
+```sh
+mcp-publisher publish                        # reads server.json
+```
+
+Uses the `io.github.hoodsy/*` namespace; if the session isn't authenticated,
+run `mcp-publisher login github` first (GitHub device flow). The registry
+validates PyPI ownership via the `mcp-name: io.github.hoodsy/solar-data-mcp`
+HTML comment in `packages/solar-data-mcp/README.md` — don't remove it, and
+remember the marker only "exists" once the new version is live on PyPI.
 
 ## If the release workflow fails
 

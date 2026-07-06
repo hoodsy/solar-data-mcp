@@ -1,6 +1,6 @@
 [project]
 name = "solar-data-mcp-nrel"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for NREL solar APIs: PVWatts v8 production estimates and NSRDB solar resource data"
 readme = "README.md"
 license = "MIT"

@@ -1,6 +1,6 @@
 [project]
 name = "solar-data-mcp-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shared infrastructure for solar-data-mcp servers: HTTP client, cache, rate limiting, result envelope"
 readme = "README.md"
 license = "MIT"
