@@ -5,9 +5,9 @@ members = ["packages/*"]
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
-    "anyio>=4",
-    "ruff>=0.8",
-    "mypy>=1.13",
+    "anyio>=4.14.2",
+    "ruff>=0.15.22",
+    "mypy>=2.3.0",
     # core's BulkStore imports duckdb lazily; runtime dep is declared by the
     # packages that use it, but core's own tests need it present
     "duckdb>=1.1",
